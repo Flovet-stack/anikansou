@@ -1,0 +1,5 @@
+{
+  "//": "Lets Node 24 run src/sync/*.ts directly as ES modules (type stripping). Not a separate package.",
+  "type": "module",
+  "private": true
+}

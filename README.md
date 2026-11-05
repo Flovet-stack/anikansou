@@ -2,7 +2,7 @@
 
 A Letterboxd-style site for anime, where users log, rate, review and list what they watch. Kansou (感想) means "thoughts after watching".
 
-This is the project foundation. There are no product features, database tables or data sync yet.
+This is the project foundation plus the catalog: the anime dataset is imported into a `catalog` schema, but there are no product features or pages on top of it yet.
 
 **Stack:** Next.js (App Router, Cache Components), TypeScript (strict), Tailwind CSS, shadcn/ui, Supabase and Vercel. There is no separate backend, ORM or Redis.
 
@@ -30,6 +30,8 @@ On Vercel, set the same three variables, with `NEXT_PUBLIC_SITE_URL=https://anik
 | `pnpm typecheck`               | Generate route types, then run `tsc`                         |
 | `pnpm test` / `test:watch`     | Vitest unit tests                                            |
 | `pnpm test:e2e`                | Playwright against a production build, using placeholder env |
+| `pnpm sync:catalog`            | Import the pinned dataset release (needs `DATABASE_URL`)     |
+| `pnpm sync:bump`               | Move the dataset pin to the newest weekly release            |
 
 Run `pnpm exec playwright install chromium` once before the first E2E run.
 
@@ -90,6 +92,8 @@ Unit tests sit beside the code as `*.test.ts` and run in Node. Tests for client 
 
 Use a generated `tsvector` column with a GIN index and the `simple` config, plus `pg_trgm` for typos, and keyset pagination. Test against real Japanese titles before relying on it.
 
+Title search runs on `catalog.anime_titles` (one row per title, trigram-indexed). Filter with `search_text %> $query`, which the index serves, not `$query <% search_text`. See [src/sync/README.md](src/sync/README.md#searching-titles).
+
 ### SEO
 
 - Use `buildMetadata` from `lib/seo/metadata` on every page. Next.js merges metadata shallowly, so setting `openGraph` directly drops the shared fields.
@@ -104,14 +108,14 @@ Use a generated `tsvector` column with a GIN index and the `simple` config, plus
 Once migrations exist, regenerate the types and commit them:
 
 ```bash
-pnpm dlx supabase gen types typescript --project-id <project-ref> --schema public > src/types/database.types.ts
+pnpm dlx supabase gen types typescript --project-id <project-ref> --schema public --schema catalog > src/types/database.types.ts
 ```
 
 ## Data source
 
 The only anime data source is [anime-offline-database](https://github.com/cedya77/anime-offline-database), the cedya77 fork, which publishes weekly releases tagged `<year>-<week>`. No external anime APIs are used, now or planned.
 
-**The importer is the next step for the catalog.** It will load a pinned release into a separate `catalog` schema. See [src/sync/README.md](src/sync/README.md) for the design.
+The importer (`pnpm sync:catalog`) loads a pinned release into a separate `catalog` schema, and a weekly workflow opens a PR to move the pin. See [src/sync/README.md](src/sync/README.md) for how it works and how to run it.
 
 **License:** the database is under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/) and its contents are under the [Database Contents License 1.0](https://opendatacommons.org/licenses/dbcl/1-0/).
 
