@@ -1,0 +1,4 @@
+# Keep LF on every platform. Prettier expects it, and CRLF breaks the Husky scripts.
+* text=auto eol=lf
+*.ico binary
+*.png binary

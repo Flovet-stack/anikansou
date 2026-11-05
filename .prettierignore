@@ -1,0 +1,7 @@
+.next
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+next-env.d.ts
+src/types/database.types.ts
