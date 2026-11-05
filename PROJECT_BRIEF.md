@@ -112,6 +112,7 @@ References are for inspiration only: never copy their logos, names, icons, illus
 - No paid APIs or services beyond hosting basics.
 - WCAG 2.2 AA; mobile first; dark mode first.
 - Legal check on the crawled-data question before monetizing.
+- No custom domain yet; production runs on the Vercel URL.
 
 ## Active roles
 
