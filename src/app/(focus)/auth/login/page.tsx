@@ -22,7 +22,7 @@ export default function LogInPage({
   return (
     <AuthShell
       title="Log in"
-      description="Welcome back. Pick up where you left off."
+      description="Welcome back. Your ratings are where you left them."
     >
       <Suspense fallback={<FormFallback />}>
         <LogInForm searchParams={searchParams} />

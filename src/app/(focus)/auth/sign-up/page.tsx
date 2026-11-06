@@ -20,7 +20,8 @@ export default function SignUpPage({
   return (
     <AuthShell
       title="Create an account"
-      description="Log what you watch and what you thought of it."
+      description="Rate, track and remember every anime you watch. It takes a minute."
+      step={1}
     >
       <Suspense fallback={<FormFallback />}>
         <SignUpForm searchParams={searchParams} />

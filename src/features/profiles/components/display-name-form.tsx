@@ -27,7 +27,7 @@ export function DisplayNameForm({
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-4" noValidate>
+    <form action={formAction} className="flex flex-col gap-5" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="display-name">Display name</Label>
         <Input
@@ -45,7 +45,10 @@ export function DisplayNameForm({
               : "display-name-hint"
           }
         />
-        <p id="display-name-hint" className="text-xs text-muted-foreground">
+        <p
+          id="display-name-hint"
+          className="text-caption text-muted-foreground"
+        >
           Optional, up to {DISPLAY_NAME_MAX} characters. Leave it empty to show
           your username.
         </p>

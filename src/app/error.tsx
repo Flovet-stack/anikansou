@@ -1,16 +1,14 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { AppShell } from "@/components/layout/app-shell";
+import { ErrorState } from "@/components/layout/error-state";
 
+// Errors outside the (app) group (for example in a group layout): no layout
+// wraps this boundary, so it brings the shell itself.
 export default function ErrorPage({ retry }: { retry: () => void }) {
   return (
-    <>
-      <h1 className="font-heading text-2xl font-semibold">
-        Something went wrong
-      </h1>
-      <Button className="mt-4" onClick={() => retry()}>
-        Try again
-      </Button>
-    </>
+    <AppShell>
+      <ErrorState retry={retry} />
+    </AppShell>
   );
 }

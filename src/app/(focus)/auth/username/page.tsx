@@ -23,6 +23,7 @@ export default function UsernamePage({
     <AuthShell
       title="Choose a username"
       description="This is how other fans will find you."
+      step={2}
     >
       <Suspense fallback={<FormFallback />}>
         <UsernameStep searchParams={searchParams} />
