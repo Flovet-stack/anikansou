@@ -47,3 +47,6 @@ next-env.d.ts
 # env template is safe to commit
 !.env.example
 !.env.test.example
+
+# supabase CLI local state
+/supabase/.temp/

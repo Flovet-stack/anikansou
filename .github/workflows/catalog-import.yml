@@ -1,0 +1,49 @@
+# Imports the dataset release pinned in src/sync/release.json into the catalog schema.
+# Runs when a bump PR (or any change to the pin) lands on main, or by hand.
+name: Catalog import
+
+on:
+  push:
+    branches: [main]
+    paths: [src/sync/release.json]
+  workflow_dispatch:
+    inputs:
+      allow_large_change:
+        description: Apply even if a guard rail fails (large retire, merge or count change)
+        type: boolean
+        default: false
+
+# One import at a time; never cancel one that is running.
+concurrency:
+  group: catalog-import
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Import
+        env:
+          # Supabase session pooler URI (IPv4; supports one long transaction).
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRIGGER: ${{ github.event_name == 'push' && 'push' || 'manual' }}
+          ALLOW_LARGE_CHANGE: ${{ inputs.allow_large_change && 'true' || 'false' }}
+        run: |
+          args=(--trigger "$TRIGGER")
+          if [ "$ALLOW_LARGE_CHANGE" = "true" ]; then args+=(--allow-large-change); fi
+          pnpm sync:catalog "${args[@]}"

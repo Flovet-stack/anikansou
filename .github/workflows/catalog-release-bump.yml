@@ -1,0 +1,71 @@
+# Weekly: if the dataset has a newer weekly release, open (or update) one PR that
+# moves the pin in src/sync/release.json. Merging it runs the Catalog import workflow.
+# Never auto-merges.
+name: Catalog release bump
+
+on:
+  schedule:
+    # Mondays 06:17 UTC; the dataset publishes on weekends.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: catalog-release-bump
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BRANCH: chore/catalog-release-bump
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Check for a newer release
+        id: bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm sync:bump
+
+      - name: Open or update the bump PR
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add src/sync/release.json
+          git commit -m "chore(catalog): bump dataset release to $TAG"
+          git push --force origin "$BRANCH"
+
+          title="chore(catalog): bump dataset release to $TAG"
+          body="$(printf '%s\n\n%s\n\n%s\n' \
+            "Moves the pinned anime-offline-database release to [\`$TAG\`](https://github.com/cedya77/anime-offline-database/releases/tag/$TAG). Only \`src/sync/release.json\` changes (tag and the asset's sha256)." \
+            "Merging this runs the **Catalog import** workflow. Guard rails stop the import if the release retires, merges or drops too much; re-run it by hand with \`allow_large_change\` if that is expected." \
+            "Opened by the weekly Catalog release bump workflow.")"
+
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" != "0" ]; then
+            gh pr edit "$BRANCH" --title "$title" --body "$body"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
+          fi
+
+      - name: Nothing to do
+        if: steps.bump.outputs.bumped != 'true'
+        run: echo "Already on the newest release (${{ steps.bump.outputs.tag }})."
