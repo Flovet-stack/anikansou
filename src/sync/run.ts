@@ -1,7 +1,12 @@
 import type { CopyValue, Db, Param } from "./db.ts";
 import { checkGuards, type GuardOptions } from "./guards.ts";
 import { contentHash } from "./hash.ts";
-import { matchIdentities, type ExistingState } from "./identity.ts";
+import {
+  assignUrlOwners,
+  matchIdentities,
+  type ExistingState,
+  type UrlOwners,
+} from "./identity.ts";
 import {
   normalizeEntry,
   studioKey,
@@ -58,6 +63,7 @@ export class GuardError extends Error {
 const num = (value: unknown) => Number(value);
 
 type Prepared = {
+  line: number;
   normalized: NormalizedAnime;
   hash: string;
   raw: unknown;
@@ -110,6 +116,7 @@ export async function runImport(options: RunOptions): Promise<RunResult> {
     step(`Validated ${entries.length} entries`);
 
     const prepared: Prepared[] = entries.map((e) => ({
+      line: e.line,
       normalized: normalizeEntry(e.entry),
       hash: contentHash(e.raw),
       raw: e.raw,
@@ -211,7 +218,7 @@ function displayNames(prepared: Prepared[], skip: Set<string>) {
 
 async function applyRelease(
   db: Db,
-  prepared: Prepared[],
+  allPrepared: Prepared[],
   ctx: ApplyContext,
 ): Promise<{ stats: RunStats; details: Record<string, unknown> }> {
   const existing = await loadExisting(db);
@@ -219,10 +226,37 @@ async function applyRelease(
     `Loaded ${existing.state.anime.size} anime and ${existing.state.urlToId.size} external ids`,
   );
 
-  const plan = matchIdentities(
-    prepared.map((p) => ({ urls: p.normalized.urls.map((u) => u.key) })),
-    existing.state,
+  // An entry whose every URL belongs to another entry could never be found
+  // again, so it would be re-created and retired on every run. Skip it, and
+  // match again without it, until every entry owns at least one URL.
+  let prepared = allPrepared;
+  const skippedLines: number[] = [];
+  const urlsOf = (list: Prepared[]) =>
+    list.map((p) => ({ urls: p.normalized.urls.map((u) => u.key) }));
+  let plan = matchIdentities(urlsOf(prepared), existing.state);
+  let owners: UrlOwners = assignUrlOwners(
+    urlsOf(prepared),
+    plan.assignments,
+    existing.state.urlToId,
   );
+  while (owners.orphans.length > 0) {
+    const orphans = new Set(owners.orphans);
+    prepared.forEach((p, i) => {
+      if (orphans.has(i)) skippedLines.push(p.line);
+    });
+    prepared = prepared.filter((_, i) => !orphans.has(i));
+    plan = matchIdentities(urlsOf(prepared), existing.state);
+    owners = assignUrlOwners(
+      urlsOf(prepared),
+      plan.assignments,
+      existing.state.urlToId,
+    );
+  }
+  if (skippedLines.length > 0) {
+    ctx.log(
+      `Skipped ${skippedLines.length} entr${skippedLines.length === 1 ? "y" : "ies"} whose URLs all belong to other entries (lines ${skippedLines.slice(0, 20).join(", ")})`,
+    );
+  }
 
   const revivedSet = new Set(plan.revived);
   let updated = 0;
@@ -266,7 +300,7 @@ async function applyRelease(
   }
 
   if (ctx.dryRun || ctx.runId === null)
-    return { stats, details: { guardProblems: problems } };
+    return { stats, details: { guardProblems: problems, skippedLines } };
   const runId = ctx.runId;
 
   // Reserve ids for new anime from the table's identity sequence.
@@ -280,15 +314,9 @@ async function applyRelease(
     ids.push(assigned ?? num(newIds[next++]?.id));
   }
 
-  const { sharedUrls } = await stage(
-    db,
-    prepared,
-    ids,
-    plan,
-    existing.overrideAliases,
-    existing.state.urlToId,
-  );
+  await stage(db, prepared, ids, plan, existing.overrideAliases, owners.owner);
   ctx.step("Staged");
+  const sharedUrls = owners.shared;
   if (sharedUrls > 0) {
     ctx.log(
       `${sharedUrls} source URL(s) appear in more than one entry; each kept one owner`,
@@ -306,6 +334,7 @@ async function applyRelease(
     guardProblems: problems,
     overridesOnRetiredAnime: num(overridesOnRetired?.n ?? 0),
     sharedUrls,
+    skippedLines,
   };
   if (details.overridesOnRetiredAnime > 0) {
     ctx.log(
@@ -360,34 +389,9 @@ async function stage(
   ids: number[],
   plan: ReturnType<typeof matchIdentities>,
   overrideAliases: Set<string>,
-  urlToId: Map<string, number>,
-): Promise<{ sharedUrls: number }> {
+  owner: Map<string, number>,
+): Promise<void> {
   await truncateStaging(db);
-
-  // A URL can appear in two entries of one release (mid-move upstream, or two
-  // spellings that normalize to one key). external_ids holds one owner per URL:
-  // the entry that kept the anime the URL already maps to, else the first entry.
-  const owner = new Map<string, number>();
-  let sharedUrls = 0;
-  prepared.forEach((p, i) => {
-    for (const u of p.normalized.urls) {
-      const current = owner.get(u.key);
-      if (current === undefined) {
-        owner.set(u.key, i);
-        continue;
-      }
-      if (current === i) continue;
-      sharedUrls += 1;
-      const mapped = urlToId.get(u.key);
-      if (
-        mapped !== undefined &&
-        ids[i] === mapped &&
-        ids[current] !== mapped
-      ) {
-        owner.set(u.key, i);
-      }
-    }
-  });
 
   const anime: CopyValue[][] = [];
   const externalIds: CopyValue[][] = [];
@@ -490,7 +494,6 @@ async function stage(
   );
 
   for (const table of STAGING) await db.query(`analyze ${table}`);
-  return { sharedUrls };
 }
 
 /**

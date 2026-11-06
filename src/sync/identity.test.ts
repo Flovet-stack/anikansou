@@ -1,6 +1,40 @@
 import { describe, expect, it } from "vitest";
 
-import { matchIdentities, type ExistingState } from "./identity.ts";
+import {
+  assignUrlOwners,
+  matchIdentities,
+  type ExistingState,
+} from "./identity.ts";
+
+describe("assignUrlOwners", () => {
+  it("gives each URL to one entry, the first by default", () => {
+    const r = assignUrlOwners(
+      [{ urls: ["a/1", "k/7"] }, { urls: ["b/1", "k/7"] }],
+      [null, null],
+      new Map(),
+    );
+    expect(r.owner.get("k/7")).toBe(0);
+    expect(r).toMatchObject({ shared: 1, orphans: [] });
+  });
+
+  it("prefers the entry that kept the anime the URL already maps to", () => {
+    const r = assignUrlOwners(
+      [{ urls: ["a/1", "k/7"] }, { urls: ["b/1", "k/7"] }],
+      [null, 20],
+      new Map([["k/7", 20]]),
+    );
+    expect(r.owner.get("k/7")).toBe(1);
+  });
+
+  it("reports an entry left with no URL of its own", () => {
+    const r = assignUrlOwners(
+      [{ urls: ["a/1", "k/7"] }, { urls: ["k/7"] }],
+      [null, null],
+      new Map(),
+    );
+    expect(r.orphans).toEqual([1]);
+  });
+});
 
 function existing(
   mappings: Record<string, number>,

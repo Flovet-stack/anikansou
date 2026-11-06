@@ -346,6 +346,35 @@ describe("runImport: changes between releases", () => {
     expect(await idFor("https://kitsu.app/anime/7")).toBe(owner);
   });
 
+  it("skips an entry whose URLs all belong to another entry, and stays stable", async () => {
+    const full = entry({
+      sources: [mal(8), anilist(8)],
+      title: "Eight",
+      relatedAnime: [],
+      synonyms: [],
+    });
+    const subset = entry({
+      sources: ["https://www.myanimelist.net/anime/8/"],
+      title: "Eight (dup)",
+      relatedAnime: [],
+      synonyms: [],
+    });
+
+    const first = await run(release(full, subset));
+    expect(first.stats).toMatchObject({ entries: 1, inserted: 1 });
+    expect(first.details.skippedLines).toEqual([3]);
+
+    const second = await run(release(full, subset));
+    expect(second.stats).toMatchObject({
+      inserted: 0,
+      updated: 0,
+      retired: 0,
+      split: 0,
+      unchanged: 1,
+    });
+    expect(await count("catalog.anime")).toBe(1);
+  });
+
   it("never touches overrides or override aliases", async () => {
     await run(release(frieren, frieren2));
     const f = await idFor(mal(52991));

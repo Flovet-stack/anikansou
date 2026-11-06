@@ -31,6 +31,51 @@ export type IdentityPlan = {
   };
 };
 
+export type UrlOwners = {
+  /** URL key → index of the entry that owns it in external_ids. */
+  owner: Map<string, number>;
+  /** How many times a key appeared in an entry that did not get it. */
+  shared: number;
+  /** Entries that own none of their URLs: they cannot be identified later. */
+  orphans: number[];
+};
+
+/**
+ * A URL can appear in two entries of one release (mid-move upstream, or two
+ * spellings that normalize to one key), but external_ids holds one owner per
+ * URL: the entry that kept the anime the URL already maps to, else the first.
+ */
+export function assignUrlOwners(
+  entries: { urls: string[] }[],
+  assignments: (number | null)[],
+  urlToId: Map<string, number>,
+): UrlOwners {
+  const owner = new Map<string, number>();
+  let shared = 0;
+  entries.forEach((e, i) => {
+    for (const url of e.urls) {
+      const current = owner.get(url);
+      if (current === undefined) {
+        owner.set(url, i);
+        continue;
+      }
+      if (current === i) continue;
+      shared += 1;
+      const mapped = urlToId.get(url);
+      if (
+        mapped !== undefined &&
+        assignments[i] === mapped &&
+        assignments[current] !== mapped
+      ) {
+        owner.set(url, i);
+      }
+    }
+  });
+  const owning = new Set(owner.values());
+  const orphans = entries.map((_, i) => i).filter((i) => !owning.has(i));
+  return { owner, shared, orphans };
+}
+
 type Claim = { entry: number; overlap: number; smallestUrl: string };
 
 /** Higher overlap wins; on a tie, the smaller shared URL; then the earlier entry. */
