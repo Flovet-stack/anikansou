@@ -1,6 +1,6 @@
 # 04: UI refresh of the existing pages
 
-Status: Ready (decisions 0001–0007 and 0012 approved) · Written: 2026-11-06
+Status: Done (PR #11) · Written: 2026-11-06
 
 Brief: Design direction ("no generic UI", dark first, sidebar shell) and Must have #24 (dark mode). This task puts the approved design system into code and restyles the pages that exist today. It adds no new features.
 
