@@ -34,19 +34,23 @@ For anything bigger than browsing, use the **SQL Editor**; see [Useful queries](
 
 **Public tables** (anyone can read, nobody but the importer can write):
 
-| Table             | One row per                                                   | About (2026-44) |
-| ----------------- | ------------------------------------------------------------- | --------------: |
-| `anime`           | Anime. Our own `id`, never reused. Retired, never deleted.    |          38,337 |
-| `anime_titles`    | Title or synonym of an anime, with `search_text` for search   |         262,487 |
-| `external_ids`    | Source URL (MyAnimeList, AniList…), split into site + id      |         192,084 |
-| `studios`         | Studio or producer, merged by a normalized name               |           6,523 |
-| `studio_aliases`  | Raw spelling of a studio name → its studio                    |           7,047 |
-| `anime_studios`   | Anime × studio × role (`studio` or `producer`)                |          97,020 |
-| `tags`            | Tag or genre                                                  |           3,139 |
-| `anime_tags`      | Anime × tag                                                   |         587,583 |
-| `anime_relations` | "Related to" link between two anime (untyped, as published)   |         137,425 |
-| `anime_redirects` | Old anime id → the id it was merged into                      |               0 |
-| `data_sources`    | Data source, with its licence and the attribution text we owe |               1 |
+| Table             | One row per                                                     | About (2026-44) |
+| ----------------- | --------------------------------------------------------------- | --------------: |
+| `anime`           | Anime. Our own `id`, never reused. Retired, never deleted.      |          38,337 |
+| `anime_titles`    | Title or synonym of an anime, with `search_text` for search     |         262,487 |
+| `external_ids`    | Source URL (MyAnimeList, AniList…), split into site + id        |         192,084 |
+| `studios`         | Studio or producer, merged by a normalized name                 |           6,523 |
+| `studio_aliases`  | Raw spelling of a studio name → its studio                      |           7,047 |
+| `anime_studios`   | Anime × studio × role (`studio` or `producer`)                  |          97,020 |
+| `tags`            | Tag or genre                                                    |           3,139 |
+| `anime_tags`      | Anime × tag                                                     |         587,583 |
+| `anime_relations` | "Related to" link between two anime (untyped, as published)     |         137,425 |
+| `anime_redirects` | Old anime id → the id it was merged into                        |               0 |
+| `data_sources`    | Data source, with its licence and the attribution text we owe   |               1 |
+| `image_sources`   | Poster source (in-house, TMDB, AniList), its rank and on/off    |               3 |
+| `anime_images`    | Poster image of an anime from one source (link or Storage path) |   added by hand |
+
+`anime_images` only shows app users rows that are `active` and whose source is switched on. Readers use the view **`poster_candidates`** (usable posters, lowest `priority` first); the app turns Storage paths into URLs and falls back to the generated poster. These two tables are filled by hand, never by the import ([spec 03](../specs/03-poster-sources.md), decision 0008).
 
 **Private tables** (no access for app users at all):
 
@@ -165,6 +169,30 @@ from catalog.import_runs order by id desc limit 5;
 
 1. Fix forward: pin a good release in `release.json` and import it. Matching keeps ids stable, and retired anime come back with their ids.
 2. Restore from a Supabase backup (**Database > Backups**). What's available depends on the plan; check it before you need it.
+
+## Adding posters by hand
+
+Sources, best first: `inhouse` (10), `tmdb` (20), `anilist` (30, **off** until AniList gives written permission). Use the SQL Editor.
+
+```sql
+-- A TMDB poster: paste the image link (it must start with https://image.tmdb.org/t/p/).
+insert into catalog.anime_images (anime_id, source_id, url, external_ref)
+values (123, (select id from catalog.image_sources where slug = 'tmdb'),
+        'https://image.tmdb.org/t/p/w500/abc123.jpg', 'tv/209867');
+
+-- An in-house poster: upload the file to the public Storage bucket `posters` first,
+-- then record its path inside the bucket (no leading slash).
+insert into catalog.anime_images (anime_id, source_id, storage_path)
+values (123, (select id from catalog.image_sources where slug = 'inhouse'), 'frieren/poster.jpg');
+
+-- A link stopped working: hide it, and the next source takes over.
+update catalog.anime_images set status = 'broken' where id = 42;
+
+-- Switch a whole source off (or on). Its posters disappear for everyone at once.
+update catalog.image_sources set is_enabled = false where slug = 'tmdb';
+```
+
+The database refuses a link outside its source's prefix, a Storage path with `..` or a leading `/`, and a second poster from the same source for the same anime. A source's `url_prefix` can't be changed while it still has images, so old links never escape the check.
 
 ## Size and scaling
 

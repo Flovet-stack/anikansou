@@ -1,6 +1,6 @@
 # 01: Catalog import
 
-Status: ready · Written: 2026-11-05 · Pinned release: `2026-44`
+Status: Done (PR #5, merged 2026-11-06) · Written: 2026-11-05 · Pinned release: `2026-44`
 
 ## Goal
 

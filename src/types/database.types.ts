@@ -80,6 +80,69 @@ export type Database = {
           },
         ]
       }
+      anime_images: {
+        Row: {
+          anime_id: number
+          created_at: string
+          external_ref: string | null
+          height: number | null
+          id: number
+          kind: string
+          note: string | null
+          source_id: number
+          status: string
+          storage_path: string | null
+          updated_at: string
+          url: string | null
+          width: number | null
+        }
+        Insert: {
+          anime_id: number
+          created_at?: string
+          external_ref?: string | null
+          height?: number | null
+          id?: never
+          kind?: string
+          note?: string | null
+          source_id: number
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          width?: number | null
+        }
+        Update: {
+          anime_id?: number
+          created_at?: string
+          external_ref?: string | null
+          height?: number | null
+          id?: never
+          kind?: string
+          note?: string | null
+          source_id?: number
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          url?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_images_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anime_images_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "image_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anime_redirects: {
         Row: {
           created_at: string
@@ -376,6 +439,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      image_sources: {
+        Row: {
+          attribution: string
+          created_at: string
+          id: number
+          is_enabled: boolean
+          name: string
+          priority: number
+          slug: string
+          url_prefix: string | null
+        }
+        Insert: {
+          attribution?: string
+          created_at?: string
+          id?: never
+          is_enabled?: boolean
+          name: string
+          priority: number
+          slug: string
+          url_prefix?: string | null
+        }
+        Update: {
+          attribution?: string
+          created_at?: string
+          id?: never
+          is_enabled?: boolean
+          name?: string
+          priority?: number
+          slug?: string
+          url_prefix?: string | null
+        }
+        Relationships: []
       }
       import_runs: {
         Row: {
@@ -751,7 +847,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      poster_candidates: {
+        Row: {
+          anime_id: number | null
+          height: number | null
+          priority: number | null
+          source: string | null
+          storage_path: string | null
+          url: string | null
+          width: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_images_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
