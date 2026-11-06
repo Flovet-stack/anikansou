@@ -143,6 +143,8 @@ pnpm dlx supabase gen types typescript --project-id <project-ref> --schema publi
 
 The only anime data source is [anime-offline-database](https://github.com/cedya77/anime-offline-database), the cedya77 fork, which publishes weekly releases tagged `<year>-<week>`. No external anime APIs are used, now or planned.
 
+**How the database is set up, updated and repaired: [supabase/README.md](supabase/README.md).**
+
 The importer (`pnpm sync:catalog`) loads a pinned release into a separate `catalog` schema, and a weekly workflow opens a PR to move the pin. See [src/sync/README.md](src/sync/README.md) for how it works and how to run it.
 
 **License:** the database is under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/) and its contents are under the [Database Contents License 1.0](https://opendatacommons.org/licenses/dbcl/1-0/).

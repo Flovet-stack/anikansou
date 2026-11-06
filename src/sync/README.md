@@ -2,6 +2,8 @@
 
 The catalog importer. It loads one pinned release of [anime-offline-database](https://github.com/cedya77/anime-offline-database) (the cedya77 fork) into the `catalog` schema. The task spec is [specs/01-catalog-import.md](../../specs/01-catalog-import.md), and the schema is in [supabase/migrations](../../supabase/migrations). See the [Data source](../../README.md#data-source) section of the main README for the license and attribution.
 
+For the whole database (schemas, access rules, the weekly update flow and what to do when an import fails), see the [database guide](../../supabase/README.md). This file covers the importer itself.
+
 Application code never imports from `@/sync`. ESLint enforces this.
 
 ## Running it
