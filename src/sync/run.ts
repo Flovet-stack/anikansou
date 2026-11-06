@@ -280,8 +280,20 @@ async function applyRelease(
     ids.push(assigned ?? num(newIds[next++]?.id));
   }
 
-  await stage(db, prepared, ids, plan, existing.overrideAliases);
+  const { sharedUrls } = await stage(
+    db,
+    prepared,
+    ids,
+    plan,
+    existing.overrideAliases,
+    existing.state.urlToId,
+  );
   ctx.step("Staged");
+  if (sharedUrls > 0) {
+    ctx.log(
+      `${sharedUrls} source URL(s) appear in more than one entry; each kept one owner`,
+    );
+  }
 
   stats.unresolvedRelations = await apply(db, runId);
   ctx.step("Applied");
@@ -293,6 +305,7 @@ async function applyRelease(
   const details = {
     guardProblems: problems,
     overridesOnRetiredAnime: num(overridesOnRetired?.n ?? 0),
+    sharedUrls,
   };
   if (details.overridesOnRetiredAnime > 0) {
     ctx.log(
@@ -347,8 +360,34 @@ async function stage(
   ids: number[],
   plan: ReturnType<typeof matchIdentities>,
   overrideAliases: Set<string>,
-) {
+  urlToId: Map<string, number>,
+): Promise<{ sharedUrls: number }> {
   await truncateStaging(db);
+
+  // A URL can appear in two entries of one release (mid-move upstream, or two
+  // spellings that normalize to one key). external_ids holds one owner per URL:
+  // the entry that kept the anime the URL already maps to, else the first entry.
+  const owner = new Map<string, number>();
+  let sharedUrls = 0;
+  prepared.forEach((p, i) => {
+    for (const u of p.normalized.urls) {
+      const current = owner.get(u.key);
+      if (current === undefined) {
+        owner.set(u.key, i);
+        continue;
+      }
+      if (current === i) continue;
+      sharedUrls += 1;
+      const mapped = urlToId.get(u.key);
+      if (
+        mapped !== undefined &&
+        ids[i] === mapped &&
+        ids[current] !== mapped
+      ) {
+        owner.set(u.key, i);
+      }
+    }
+  });
 
   const anime: CopyValue[][] = [];
   const externalIds: CopyValue[][] = [];
@@ -376,7 +415,10 @@ async function stage(
       n.score?.mean ?? null,
       n.score?.median ?? null,
     ]);
-    for (const u of n.urls) externalIds.push([id, u.site, u.externalId, u.url]);
+    for (const u of n.urls) {
+      if (owner.get(u.key) === i)
+        externalIds.push([id, u.site, u.externalId, u.url]);
+    }
     for (const t of n.titles) titles.push([id, t.title, t.kind, t.searchText]);
     for (const s of n.studios) {
       animeStudios.push([id, s.raw, s.role]);
@@ -448,6 +490,7 @@ async function stage(
   );
 
   for (const table of STAGING) await db.query(`analyze ${table}`);
+  return { sharedUrls };
 }
 
 /**
@@ -560,11 +603,16 @@ async function apply(db: Db, runId: number): Promise<number> {
     select distinct x.anime_id, a.studio_id, x.role
     from catalog.staging_anime_studios x
     join catalog.studio_aliases a on a.raw_name = x.raw_name`;
+  // Deletes use NOT EXISTS anti-joins: `(…) NOT IN (subquery)` only hashes when
+  // the subquery fits in work_mem, and otherwise rescans it for every row.
   await db.query(
     `delete from catalog.anime_studios t
      using catalog.staging_anime s
      where t.anime_id = s.anime_id
-       and (t.anime_id, t.studio_id, t.role) not in (${desiredStudios})`,
+       and not exists (select 1 from catalog.staging_anime_studios x
+                       join catalog.studio_aliases a on a.raw_name = x.raw_name
+                       where x.anime_id = t.anime_id and a.studio_id = t.studio_id
+                         and x.role = t.role)`,
   );
   await db.query(
     `insert into catalog.anime_studios (anime_id, studio_id, role)
@@ -583,7 +631,10 @@ async function apply(db: Db, runId: number): Promise<number> {
   await db.query(
     `delete from catalog.anime_tags t
      using catalog.staging_anime s
-     where t.anime_id = s.anime_id and (t.anime_id, t.tag_id) not in (${desiredTags})`,
+     where t.anime_id = s.anime_id
+       and not exists (select 1 from catalog.staging_anime_tags x
+                       join catalog.tags g on g.name = x.tag
+                       where x.anime_id = t.anime_id and g.id = t.tag_id)`,
   );
   await db.query(
     `insert into catalog.anime_tags (anime_id, tag_id)
@@ -600,7 +651,10 @@ async function apply(db: Db, runId: number): Promise<number> {
     `delete from catalog.anime_relations t
      using catalog.staging_anime s
      where t.anime_id = s.anime_id
-       and (t.anime_id, t.related_anime_id) not in (${desiredRelations})`,
+       and not exists (select 1 from catalog.staging_relations r
+                       join catalog.external_ids e
+                         on e.site = r.site and e.external_id = r.external_id
+                       where r.anime_id = t.anime_id and e.anime_id = t.related_anime_id)`,
   );
   await db.query(
     `insert into catalog.anime_relations (anime_id, related_anime_id)

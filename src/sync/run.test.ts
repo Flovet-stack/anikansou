@@ -315,6 +315,37 @@ describe("runImport: changes between releases", () => {
     expect(await idFor(mal(5))).not.toBe(id);
   });
 
+  it("handles a URL that two entries of one release share", async () => {
+    // Same URL in both entries, plus two spellings that normalize to one key.
+    const a = entry({
+      sources: [mal(7), "https://kitsu.app/anime/7"],
+      title: "Seven",
+      relatedAnime: [],
+      synonyms: [],
+    });
+    const b = entry({
+      sources: [anilist(7), "https://WWW.kitsu.app/anime/7/"],
+      title: "Seven (alt)",
+      relatedAnime: [],
+      synonyms: [],
+    });
+    const first = await run(release(a, b));
+    expect(first.stats.inserted).toBe(2);
+    expect(first.details.sharedUrls).toBe(1);
+    const owner = await idFor("https://kitsu.app/anime/7");
+    expect(owner).toBe(await idFor(mal(7)));
+
+    // Stable on a re-run: the URL keeps its owner and nothing changes.
+    const second = await run(release(a, b));
+    expect(second.stats).toMatchObject({
+      inserted: 0,
+      updated: 0,
+      unchanged: 2,
+      merged: 0,
+    });
+    expect(await idFor("https://kitsu.app/anime/7")).toBe(owner);
+  });
+
   it("never touches overrides or override aliases", async () => {
     await run(release(frieren, frieren2));
     const f = await idFor(mal(52991));
