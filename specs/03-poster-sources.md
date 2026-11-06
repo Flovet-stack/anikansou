@@ -1,5 +1,7 @@
 # 03: Poster sources
 
+Status: Done (PR #8, merged 2026-11-06)
+
 Brief: Images (decision 0008). This task builds the data layer for title posters: where poster images are recorded, how sources are ranked and switched off, and how the app reads them. No page shows posters yet; the poster component comes with the design foundations.
 
 ## Goal

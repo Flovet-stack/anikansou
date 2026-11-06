@@ -1,8 +1,8 @@
-# 03: Internationalization setup
+# 06: Internationalization setup
 
-Status: Blocked (waiting on approval of [0001](../docs/decisions/0001-internationalization.md), the `next-intl` dependency, and the choice of the second language) · Written: 2026-11-06
+Status: Blocked (waiting on approval of [0013](../docs/decisions/0013-internationalization.md), the `next-intl` dependency, and the choice of the second language) · Written: 2026-11-06 · Renumbered from 03, which was also used by `03-poster-sources.md`
 
-Nobody builds this spec until its status is `Ready`. When 0001 is approved, replace `<second>` below with the chosen language code, set the status to `Ready`, and fill in 0001's `Specs:` line.
+Nobody builds this spec until its status is `Ready`. When 0013 is approved, replace `<second>` below with the chosen language code, set the status to `Ready`, and fill in 0013's `Specs:` line.
 
 ## Goal
 
@@ -12,7 +12,7 @@ This task is the foundation only. It adds no new features and no languages beyon
 
 ## Decisions
 
-Implements [0001](../docs/decisions/0001-internationalization.md): path-prefix routing with English unprefixed, cookie then `Accept-Language` detection, `next-intl`, BCP 47 codes, interface language separate from title language, `Intl` formatting, one second language first, human review of every translation.
+Implements [0013](../docs/decisions/0013-internationalization.md): path-prefix routing with English unprefixed, cookie then `Accept-Language` detection, `next-intl`, BCP 47 codes, interface language separate from title language, `Intl` formatting, one second language first, human review of every translation.
 
 ## Acceptance criteria
 

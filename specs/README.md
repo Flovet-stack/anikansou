@@ -31,9 +31,10 @@ Update the status in the same PR that changes it: the PR that starts the work se
 | -------------------------------------------------- | ------- |
 | [01: Catalog import](01-catalog-import.md)         | Done    |
 | [02: Accounts](02-accounts.md)                     | Done    |
-| [03: Internationalization setup](03-i18n-setup.md) | Blocked |
+| [03: Poster sources](03-poster-sources.md)         | Done    |
 | [04: UI refresh](04-ui-refresh.md)                 | Ready   |
 | [05: Swipe deck](05-swipe-deck.md)                 | Ready   |
+| [06: Internationalization setup](06-i18n-setup.md) | Blocked |
 
 ## Suggested sections
 

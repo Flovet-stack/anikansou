@@ -1,9 +1,10 @@
-# 0001: Internationalization approach
+# 0013: Internationalization approach
 
 - **Status:** Proposed
 - **Proposed:** 2026-11-06 by the product team (roles: Tech Lead, PM, Product, UX, UI, Copy, Database, Frontend, Backend)
 - **Approved:** (pending)
 - **Supersedes:** none
+- **Renumbered:** 2026-11-06 from 0001, which was also used by `0001-visual-foundations.md`. Nothing else changed.
 - **Specs:** (filled in when a spec implements it)
 
 ## Context
