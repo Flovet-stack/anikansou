@@ -16,7 +16,8 @@ This brief describes the whole product. It does not change when a phase or sprin
 - The features below are the full planned scope. They are built **gradually, one small piece at a time**.
 - **Never implement more than the current task spec asks for.** Never attempt several features at once, and never build a feature "while you're there".
 - The current task is always defined by a spec in `specs/`. If no spec covers it, ask before building.
-- Phase plans never edit this brief. Only an explicit product decision from Flovet changes it.
+- **Nothing runs without approval.** The product team (product-team skill) researches and makes every product, UX, UI and architecture decision, and Flovet approves each one. No feature or execution starts until the decisions behind it are logged in `docs/decisions/` and approved.
+- Phase plans never edit this brief. Only a decision Flovet has approved changes it.
 - Later features may shape design choices (e.g. leave room in the schema), but are not built early.
 
 ## Full feature scope
@@ -92,7 +93,7 @@ References are for inspiration only: never copy their logos, names, icons, illus
 - **Features borrowed from Letterboxd:** half-star ratings, likes, a watchlist, a diary of watch dates, reviews, lists, top 4 favourites and stats / year in review.
 - **Gamified feel, like Duolingo:** quick, satisfying actions, light celebrations and visible progress, without guilt mechanics.
 - **No generic UI.** The product must never look like a default shadcn/ui or Tailwind template. Library components are a base for behaviour and accessibility only; restyle them fully with our tokens, and build custom components wherever the design references call for it.
-- **Research first.** Every product, UX and UI decision starts by checking how the references above solve the same problem (see the product-team skill, Step 1).
+- **The product team researches, then decides.** Before making any product, UX, UI or architecture decision, the product team researches how the references above solve the same problem (product-team skill, Step 1). The decision, its research and Flovet's approval are logged in `docs/decisions/`, and every completed task is reviewed against them (Workflow E).
 
 ### Icons
 
@@ -106,6 +107,9 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 ## Decisions (newest first)
 
+Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
+
+- 2026-11-06: The product team researches and makes every decision; Flovet approves each one before anything is built. Decisions are logged in `docs/decisions/`, and Workflow E reviews completed work against them.
 - 2026-11-06: Every feature ships with tests (unit, integration and e2e as the spec requires).
 - 2026-11-06: Icons come from icons-animated, one set only.
 - 2026-11-06: No generic library look; custom components where needed.

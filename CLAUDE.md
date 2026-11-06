@@ -7,6 +7,7 @@
 - Read `PROJECT_BRIEF.md` and the spec in `specs/` for the current task.
 - Build only what that spec asks. Never work on several features at once, and never add a feature "while you're there".
 - If no spec covers the task, ask before building.
+- Read the decisions in `docs/decisions/` that the spec links. Build only on decisions with status `Approved`. If the task needs a decision that isn't logged and approved, stop and ask; never make it yourself.
 
 ## Commands
 
