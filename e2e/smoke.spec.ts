@@ -73,10 +73,10 @@ test("unknown URLs return a real 404", async ({ request }) => {
 test("proxied routes run the session refresh without erroring", async ({
   request,
 }) => {
-  // No route exists here yet, so a 404 means the proxy ran and passed through.
-  const response = await request.get("/settings");
+  // A signed-out visit to a proxied route gets a real HTTP redirect.
+  const response = await request.get("/settings", { maxRedirects: 0 });
 
-  expect(response.status()).toBe(404);
+  expect(response.status()).toBe(307);
 });
 
 test("robots.txt blocks crawling outside production", async ({ request }) => {
