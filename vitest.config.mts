@@ -12,6 +12,8 @@ export default defineConfig({
     // Component tests opt in with a `// @vitest-environment jsdom` comment.
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
+    // Database tests need Supabase: run them with `pnpm test:db`.
+    exclude: ["src/**/*.db.test.ts"],
     env: {
       NEXT_PUBLIC_SITE_URL: "https://anikansou.test",
       NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co",

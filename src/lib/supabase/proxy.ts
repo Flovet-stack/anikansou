@@ -2,9 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { env } from "@/env";
+import { safeNext } from "@/features/auth/schemas";
 import type { Database } from "@/types/database.types";
 
-/** Refreshes the auth session and writes the new cookies to the response. */
+type Supabase = ReturnType<typeof createServerClient<Database>>;
+
+/**
+ * Refreshes the auth session, writes the new cookies to the response, and
+ * applies the signed-in redirects from spec 02. Redirects happen here, rather
+ * than in pages, so they are real HTTP redirects.
+ */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -34,7 +41,77 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not add code between client creation and this call.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims.sub ?? null;
 
-  return response;
+  const target = await redirectTarget(request, supabase, userId);
+  if (!target) return response;
+
+  const redirect = NextResponse.redirect(
+    new URL(target, request.nextUrl.origin),
+  );
+  // Keep any refreshed session cookies and no-cache headers.
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  response.headers.forEach((value, key) => {
+    if (
+      key.toLowerCase() === "cache-control" ||
+      key.toLowerCase() === "expires"
+    ) {
+      redirect.headers.set(key, value);
+    }
+  });
+  return redirect;
+}
+
+function withNext(path: string, next: string): string {
+  return `${path}?${new URLSearchParams({ next }).toString()}`;
+}
+
+async function hasUsername(supabase: Supabase, userId: string) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", userId)
+    .maybeSingle();
+  return Boolean(data?.username);
+}
+
+/** The redirect table in specs/02-accounts.md ("Proxy rules"). */
+async function redirectTarget(
+  request: NextRequest,
+  supabase: Supabase,
+  userId: string | null,
+): Promise<string | null> {
+  const { pathname, search } = request.nextUrl;
+  const here = `${pathname}${search}`;
+
+  if (pathname === "/auth/callback") return null;
+
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+    if (!userId) return withNext("/auth/login", here);
+    if (!(await hasUsername(supabase, userId))) {
+      return withNext("/auth/username", here);
+    }
+    return null;
+  }
+
+  if (pathname === "/auth/login" || pathname === "/auth/sign-up") {
+    if (!userId) return null;
+    const next = safeNext(
+      request.nextUrl.searchParams.get("next"),
+      request.nextUrl.origin,
+    );
+    if (!(await hasUsername(supabase, userId))) {
+      return withNext("/auth/username", next);
+    }
+    return next;
+  }
+
+  if (pathname === "/auth/username") {
+    if (!userId) return withNext("/auth/login", pathname);
+    if (await hasUsername(supabase, userId)) return "/settings";
+    return null;
+  }
+
+  return null;
 }

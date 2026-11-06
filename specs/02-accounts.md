@@ -16,7 +16,7 @@ Let a fan create an AniKansou account with Google or with email and password, pi
 | Username changes | Not in this spec. Once set, the database refuses to change it and `/settings` shows it read-only.                                                                                                                                                                                                                        |
 | Display name     | Optional, 1–50 characters after trimming; empty or whitespace-only means null. Prefilled from the Google profile name when there is one; never derived from the email address. Editable on `/settings`. Where it's null, the UI shows the username.                                                                      |
 | Header           | A small Client Component in the header: "Log in" when signed out, "Settings" when signed in. No avatar, no dropdown. Layouts still never read cookies.                                                                                                                                                                   |
-| Test database    | Local Supabase via the Supabase CLI (Docker, devDependency approved), for both e2e and RLS tests.                                                                                                                                                                                                                        |
+| Test database    | The real `anikansou` Supabase project, through its public API (changed on 2026-11-06 from local Supabase: no Docker on the dev machine, and the project has no real users yet). Tests sign up throwaway users, which are deleted later. Keys live in an uncommitted `.env.test`.                                         |
 
 ## Acceptance criteria
 
@@ -34,7 +34,7 @@ Let a fan create an AniKansou account with Google or with email and password, pi
   - No `insert` or `delete` policies.
 - [ ] **Username is set once:** a `before update` trigger raises when `old.username is not null and new.username is distinct from old.username`. Use `is distinct from`, so an update that leaves the username as it was (for example saving the display name) still succeeds.
 - [ ] **Sign-up trigger:** an `after insert` trigger on `auth.users` creates the matching `profiles` row with `username` null. It reads the display name from `raw_user_meta_data` keys `full_name`, then `name`; trims it, turns empty into null and cuts it to 50 characters before inserting, so no metadata value (including whatever an email sign-up sends in `options.data`) can break the check and fail the sign-up. The function is `security definer`, `set search_path = ''`, uses fully qualified names, and has `execute` revoked from `public`, `anon` and `authenticated` (or lives in a schema the API doesn't expose).
-- [ ] `src/types/database.types.ts` is regenerated with `supabase gen types typescript --local`, not hand-edited.
+- [ ] `src/types/database.types.ts` is regenerated from the Supabase project, not hand-edited.
 
 ### Auth flows
 
@@ -115,28 +115,28 @@ The proxy (`src/lib/supabase/proxy.ts`, called from `src/proxy.ts`) does these r
   - the header link reads auth state through `src/features/auth/queries.client.ts`.
 - Pages under `src/app/auth/...` and `src/app/settings/` are routing only.
 - Header link: extend `src/components/layout/site-header.tsx` with a Client Component, as its comment already says.
-- Migrations in `supabase/migrations/`; add `supabase/config.toml` from `supabase init`, with `additional_redirect_urls` covering the local e2e port. Follow the RLS conventions in `README.md` (Data access).
+- Migrations in `supabase/migrations/`; apply each one to the Supabase project before running tests. Follow the RLS conventions in `README.md` (Data access).
 - Read the installed Next.js 16 docs in `node_modules/next/dist/docs/` for Route Handlers, Server Actions, `redirect` and `proxy.ts` before writing code, and the current `@supabase/ssr` docs for the Next.js server-side PKCE flow.
-- Test wiring: `supabase start` must already be running. Tests read the local URL and keys from `supabase status` through a Playwright/Vitest global setup or an uncommitted `.env.test`; nothing is hard-coded in app code. The existing smoke tests keep passing.
+- Test wiring: tests read the Supabase project's URL and publishable key from an uncommitted `.env.test` (template: `.env.test.example`); nothing is hard-coded in app code. Database tests run with `pnpm test:db` (Vitest, separate config) so `pnpm test` stays offline. The existing smoke tests keep passing.
 - `e2e/smoke.spec.ts` currently expects `/settings` to 404; change that test to expect the new redirect rather than deleting the proxy check.
-- README: document the local Supabase setup and test commands, the new routes, the `--local` type generation command, the dashboard checklist and the pre-launch email confirmation gate.
+- README: document the test setup and commands, the new routes, type generation, the dashboard checklist and the pre-launch email confirmation gate.
 
 ## Boundaries
 
 - **Always:** verify users on the server with `getClaims()`; RLS and column grants in the first migration; run all checks and show the output; run the `reviewer` subagent against this spec before opening the PR.
-- **Ask first:** any dependency beyond the Supabase CLI devDependency; any new variable in `src/env.ts` (local test keys belong in test setup, not app env); any change to `src/lib/supabase/server.ts` or `browser.ts`.
+- **Ask first:** any new dependency; any new variable in `src/env.ts` (test keys belong in test setup, not app env); any change to `src/lib/supabase/server.ts` or `browser.ts`.
 - **Never:** call `auth.getSession()` on the server or trust its user; read cookies or headers in a layout; use the service-role or secret key in app code; commit `.env.local`, `.env.test` or keys; edit a migration that has already run; build anything listed in Out of scope.
 
 ## Check
 
-Commands that must pass (with `supabase start` running): `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`.
+Commands that must pass (with `.env.test` filled in): `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:db`, `pnpm test:e2e`, `pnpm build`.
 
 End-to-end proof:
 
-1. **E2E (Playwright, local Supabase):** a new user signs up with email and password → lands on `/auth/username` → sets a username → reaches `/settings` and sees it → logs out → lands on `/` and the header shows "Log in". Screenshot of `/settings` attached to the PR.
+1. **E2E (Playwright):** a new user signs up with email and password → lands on `/auth/username` → sets a username → reaches `/settings` and sees it → logs out → lands on `/` and the header shows "Log in". Screenshot of `/settings` attached to the PR.
 2. **E2E:** a signed-out request to `/settings` gets an HTTP 307 to `/auth/login?next=%2Fsettings` (checked on the response, not only the final URL).
 3. **Unit:** `safeNext` returns the default for every `next` value listed in Edge cases, and passes `/settings?tab=x` through.
-4. **RLS test (against local Supabase):** users A and B exist. Signed in as A:
+4. **RLS test (against the Supabase project):** users A and B exist. Signed in as A:
    - updating B's `display_name` affects 0 rows and B's row is unchanged;
    - updating A's own `display_name` succeeds, and so does saving it again with the username unchanged;
    - changing A's username once set is rejected;
