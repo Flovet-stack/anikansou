@@ -17,6 +17,15 @@ async function buildTemplate(): Promise<Blob> {
     create schema extensions;
     create role anon nologin;
     create role authenticated nologin;
+    -- Minimal stand-ins for Supabase Auth, so migrations that reference it apply.
+    create schema auth;
+    create table auth.users (
+      id uuid primary key,
+      raw_user_meta_data jsonb not null default '{}'
+    );
+    create function auth.uid() returns uuid language sql stable as $$
+      select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+    $$;
     alter database postgres set search_path = "$user", public, extensions;
   `);
   await pg.exec(`set search_path = "$user", public, extensions;`);

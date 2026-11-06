@@ -13,6 +13,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "vitest run --config vitest.db.config.mts",
     "test:e2e": "playwright test",
     "sync:catalog": "node --env-file-if-exists=.env.local src/sync/import.ts",
     "sync:bump": "node src/sync/bump.ts",

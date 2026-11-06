@@ -2,7 +2,7 @@
 
 A Letterboxd-style site for anime, where users log, rate, review and list what they watch. Kansou (感想) means "thoughts after watching".
 
-This is the project foundation plus the catalog: the anime dataset is imported into a `catalog` schema, but there are no product features or pages on top of it yet.
+Accounts are in place (spec 02): email and Google sign-in, a `profiles` table and `/settings`. The anime catalog is imported into a `catalog` schema (spec 01); there are no catalog pages on top of it yet.
 
 **Stack:** Next.js (App Router, Cache Components), TypeScript (strict), Tailwind CSS, shadcn/ui, Supabase and Vercel. There is no separate backend, ORM or Redis.
 
@@ -22,18 +22,21 @@ On Vercel, set the same three variables, with `NEXT_PUBLIC_SITE_URL=https://anik
 
 ## Scripts
 
-| Command                        | Purpose                                                      |
-| ------------------------------ | ------------------------------------------------------------ |
-| `pnpm dev` / `build` / `start` | Run, build, and serve the app                                |
-| `pnpm lint` / `lint:fix`       | ESLint. `next build` does not lint                           |
-| `pnpm format` / `format:check` | Prettier                                                     |
-| `pnpm typecheck`               | Generate route types, then run `tsc`                         |
-| `pnpm test` / `test:watch`     | Vitest unit tests                                            |
-| `pnpm test:e2e`                | Playwright against a production build, using placeholder env |
-| `pnpm sync:catalog`            | Import the pinned dataset release (needs `DATABASE_URL`)     |
-| `pnpm sync:bump`               | Move the dataset pin to the newest weekly release            |
+| Command                        | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `pnpm dev` / `build` / `start` | Run, build, and serve the app                            |
+| `pnpm lint` / `lint:fix`       | ESLint. `next build` does not lint                       |
+| `pnpm format` / `format:check` | Prettier                                                 |
+| `pnpm typecheck`               | Generate route types, then run `tsc`                     |
+| `pnpm test` / `test:watch`     | Vitest unit tests (offline)                              |
+| `pnpm test:db`                 | Database tests (RLS, constraints) against Supabase       |
+| `pnpm test:e2e`                | Playwright against a production build and Supabase       |
+| `pnpm sync:catalog`            | Import the pinned dataset release (needs `DATABASE_URL`) |
+| `pnpm sync:bump`               | Move the dataset pin to the newest weekly release        |
 
 Run `pnpm exec playwright install chromium` once before the first E2E run.
+
+`test:db` and `test:e2e` sign up throwaway users (`db-…`, `e2e-…`) in the Supabase project named in `.env.test`. Copy `.env.test.example` to `.env.test` and fill in its URL and publishable key. The project needs email confirmation off and every migration applied. Delete the test users when convenient. Once AniKansou has real users, move the tests to a separate project.
 
 Git hooks: pre-commit runs ESLint and Prettier on staged files, and pre-push runs the typecheck and unit tests.
 
@@ -103,13 +106,38 @@ Title search runs on `catalog.anime_titles` (one row per title, trigram-indexed)
 - Each content type gets its own sitemap, listed in `lib/seo/robots.ts`. Only set `lastModified` from a real content date.
 - Output JSON-LD through `<JsonLd>`, which escapes `<`. Only use `aggregateRating` for ratings from AniKansou users, never from an outside source.
 
-### Database types
+### Migrations and database types
 
-Once migrations exist, regenerate the types and commit them:
+Migrations live in `supabase/migrations/`. Never edit one that has run; add a new one. Apply each migration to the Supabase project before running the tests and before merging the PR that adds it (`pnpm dlx supabase db push`). If it was applied another way, name the file after the version recorded in `supabase_migrations.schema_migrations` so `db push` doesn't run it twice.
+
+Regenerate the types and commit them:
 
 ```bash
 pnpm dlx supabase gen types typescript --project-id <project-ref> --schema public --schema catalog > src/types/database.types.ts
 ```
+
+## Accounts
+
+| Route            | What it does                                                      |
+| ---------------- | ----------------------------------------------------------------- |
+| `/auth/sign-up`  | Email + password sign-up, or Continue with Google                 |
+| `/auth/login`    | Email + password log-in, or Continue with Google                  |
+| `/auth/callback` | Route Handler that finishes Google sign-in (PKCE code exchange)   |
+| `/auth/username` | First-sign-in step: pick a username, which can't be changed later |
+| `/settings`      | Protected example page: username, email, display name and log-out |
+
+- `src/proxy.ts` refreshes the session on `/auth/*` and `/settings/*` and does the signed-in redirects (signed out → login, no username → username step) as real HTTP redirects. Server Actions and pages check the user again with `getClaims()`.
+- Every post-sign-in destination goes through `safeNext` in `features/auth/schemas.ts`. Redirect URLs are built from the request's origin, so the same build works on localhost, Vercel previews and production.
+- `public.profiles` has one row per auth user, created by a trigger on sign-up. Everyone can read it; users can update only their own `username` (once) and `display_name`.
+
+### Supabase and Google setup (per environment)
+
+- **Site URL:** the production URL.
+- **Redirect URLs:** `http://localhost:3000/**`, `<production URL>/**` and `https://<project>-*-<team-slug>.vercel.app/**` for previews (never `https://*.vercel.app/**`). A redirect URL missing from the list silently falls back to the Site URL, which shows up as a PKCE "missing code verifier" error.
+- **Google:** enable the provider with a Google Cloud OAuth client whose authorized redirect URI is the Supabase callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`).
+- **Email:** confirmation off, minimum password length 8.
+
+> **Before public launch: turn email confirmation on.** While it's off, someone can sign up with another person's email and a password they choose. If the real owner later signs in with Google, Supabase links the Google identity into that account and the other person's password keeps working.
 
 ## Data source
 
