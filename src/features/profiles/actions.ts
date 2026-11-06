@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { requestOrigin } from "@/features/auth/origin";
 import { getCurrentUser } from "@/features/auth/queries";
-import { safeNext } from "@/features/auth/schemas";
+import { DEFAULT_NEXT, safeNext } from "@/features/auth/schemas";
 import { createClient } from "@/lib/supabase/server";
 
 import { displayNameSchema, usernameSchema } from "./schemas";
@@ -59,7 +59,7 @@ export async function setUsername(
   // No row updated: the username was already set. The next page shows it.
 
   const next = safeNext(field(formData, "next"), await requestOrigin());
-  redirect(data.length > 0 ? next : "/settings");
+  redirect(data.length > 0 ? next : DEFAULT_NEXT);
 }
 
 export type DisplayNameFormState = {

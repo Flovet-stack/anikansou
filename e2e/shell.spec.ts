@@ -157,7 +157,11 @@ test("page screenshots", async ({ page }, testInfo) => {
     .fill(`shot_${suffix}`);
   await shoot("username");
   await page.getByRole("button", { name: "Save username" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  // New users land on the deck (spec 05).
+  await expect(page).toHaveURL(/\/rate$/);
+  await expect(page.locator("main section h2").first()).toBeVisible();
+  await shoot("rate");
+  await page.goto("/settings");
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
   await shoot("settings");
 });

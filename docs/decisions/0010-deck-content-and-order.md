@@ -1,6 +1,6 @@
 # 0010: What the deck shows, and in what order
 
-- **Status:** Approved
+- **Status:** Approved; the "Order" section is superseded by [0014](0014-deck-order.md)
 - **Proposed:** 2026-11-06 by the product team (roles: Product, Database, UX, Tech Lead)
 - **Approved:** 2026-11-06 by Flovet, including the 18+ badge and blurred adult posters
 - **Revised:** 2026-11-06 after Flovet's review: the deck covers unaired and adult titles too; unaired titles get no rating or Watched controls.

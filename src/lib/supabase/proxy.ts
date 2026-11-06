@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { env } from "@/env";
-import { safeNext } from "@/features/auth/schemas";
+import { DEFAULT_NEXT, safeNext } from "@/features/auth/schemas";
 import type { Database } from "@/types/database.types";
 
 type Supabase = ReturnType<typeof createServerClient<Database>>;
@@ -76,7 +76,17 @@ async function hasUsername(supabase: Supabase, userId: string) {
   return Boolean(data?.username);
 }
 
-/** The redirect table in specs/02-accounts.md ("Proxy rules"). */
+/** Pages that need an account and a username: settings and the deck. */
+function isSignedInArea(pathname: string): boolean {
+  return ["/settings", "/rate"].some(
+    (area) => pathname === area || pathname.startsWith(`${area}/`),
+  );
+}
+
+/**
+ * The redirect table in specs/02-accounts.md ("Proxy rules"), with /rate added
+ * and the default destination changed to the deck by spec 05.
+ */
 async function redirectTarget(
   request: NextRequest,
   supabase: Supabase,
@@ -87,7 +97,7 @@ async function redirectTarget(
 
   if (pathname === "/auth/callback") return null;
 
-  if (pathname === "/settings" || pathname.startsWith("/settings/")) {
+  if (isSignedInArea(pathname)) {
     if (!userId) return withNext("/auth/login", here);
     if (!(await hasUsername(supabase, userId))) {
       return withNext("/auth/username", here);
@@ -104,12 +114,13 @@ async function redirectTarget(
     if (!(await hasUsername(supabase, userId))) {
       return withNext("/auth/username", next);
     }
-    return "/settings";
+    // Spec 05: the deck by default; an explicit safe `next` still wins.
+    return next;
   }
 
   if (pathname === "/auth/username") {
     if (!userId) return withNext("/auth/login", pathname);
-    if (await hasUsername(supabase, userId)) return "/settings";
+    if (await hasUsername(supabase, userId)) return DEFAULT_NEXT;
     return null;
   }
 

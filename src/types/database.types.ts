@@ -869,7 +869,7 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      is_adult: { Args: { p_anime_id: number }; Returns: boolean }
     }
     Enums: {
       alias_source: "import" | "override"
@@ -887,6 +887,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      deck_order_state: {
+        Row: {
+          id: number
+          import_run_id: number | null
+          refreshed_at: string
+        }
+        Insert: {
+          id?: number
+          import_run_id?: number | null
+          refreshed_at?: string
+        }
+        Update: {
+          id?: number
+          import_run_id?: number | null
+          refreshed_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -908,15 +926,201 @@ export type Database = {
         }
         Relationships: []
       }
+      user_anime: {
+        Row: {
+          anime_id: number
+          created_at: string
+          liked: boolean
+          rating: number | null
+          status: Database["public"]["Enums"]["watch_status"] | null
+          updated_at: string
+          user_id: string
+          watchlisted: boolean
+        }
+        Insert: {
+          anime_id: number
+          created_at?: string
+          liked?: boolean
+          rating?: number | null
+          status?: Database["public"]["Enums"]["watch_status"] | null
+          updated_at?: string
+          user_id: string
+          watchlisted?: boolean
+        }
+        Update: {
+          anime_id?: number
+          created_at?: string
+          liked?: boolean
+          rating?: number | null
+          status?: Database["public"]["Enums"]["watch_status"] | null
+          updated_at?: string
+          user_id?: string
+          watchlisted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_anime_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "deck_order"
+            referencedColumns: ["anime_id"]
+          },
+        ]
+      }
+      user_anime_events: {
+        Row: {
+          anime_id: number
+          created_at: string
+          id: number
+          kind: Database["public"]["Enums"]["tracking_event_kind"]
+          source: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          anime_id: number
+          created_at?: string
+          id?: never
+          kind: Database["public"]["Enums"]["tracking_event_kind"]
+          source?: string
+          user_id: string
+          value?: Json
+        }
+        Update: {
+          anime_id?: number
+          created_at?: string
+          id?: never
+          kind?: Database["public"]["Enums"]["tracking_event_kind"]
+          source?: string
+          user_id?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_anime_events_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "deck_order"
+            referencedColumns: ["anime_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      deck_order: {
+        Row: {
+          aired: boolean | null
+          anime_id: number | null
+          rank: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      deck_excluded: {
+        Args: { p_anime_id: number; p_user: string }
+        Returns: boolean
+      }
+      deck_next: {
+        Args: { p_after?: number; p_page_size?: number }
+        Returns: {
+          anime_id: number
+          duration_seconds: number
+          episodes: number
+          is_adult: boolean
+          is_upcoming: boolean
+          native_title: string
+          season: Database["catalog"]["Enums"]["season"]
+          studios: string[]
+          tags: string[]
+          title: string
+          type: Database["catalog"]["Enums"]["anime_type"]
+          year: number
+        }[]
+      }
+      deck_order_refresh_if_stale: { Args: never; Returns: undefined }
+      deck_seen: {
+        Args: {
+          p_anime_id: number
+          p_rating: number
+          p_status: Database["public"]["Enums"]["watch_status"]
+        }
+        Returns: Json
+      }
+      deck_skip: { Args: { p_anime_id: number; p_via: string }; Returns: Json }
+      deck_undo: { Args: { p_event_id: number }; Returns: Json }
+      set_like: {
+        Args: { p_anime_id: number; p_liked: boolean }
+        Returns: Json
+      }
+      set_rating: {
+        Args: { p_anime_id: number; p_rating: number }
+        Returns: Json
+      }
+      set_status: {
+        Args: {
+          p_anime_id: number
+          p_status: Database["public"]["Enums"]["watch_status"]
+        }
+        Returns: Json
+      }
+      set_watchlist: {
+        Args: { p_anime_id: number; p_on: boolean }
+        Returns: Json
+      }
+      tracking_apply: {
+        Args: {
+          p_anime_id: number
+          p_extra?: Json
+          p_kind: Database["public"]["Enums"]["tracking_event_kind"]
+          p_liked: boolean
+          p_rating: number
+          p_status: Database["public"]["Enums"]["watch_status"]
+          p_watchlisted: boolean
+        }
+        Returns: Json
+      }
+      tracking_current: {
+        Args: { p_anime_id: number }
+        Returns: {
+          anime_id: number
+          created_at: string
+          liked: boolean
+          rating: number | null
+          status: Database["public"]["Enums"]["watch_status"] | null
+          updated_at: string
+          user_id: string
+          watchlisted: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_anime"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      tracking_lock: {
+        Args: { p_anime_id: number; p_user: string }
+        Returns: undefined
+      }
+      tracking_state: {
+        Args: { p_row: Database["public"]["Tables"]["user_anime"]["Row"] }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      tracking_event_kind:
+        | "status_set"
+        | "status_cleared"
+        | "rated"
+        | "rating_cleared"
+        | "liked"
+        | "unliked"
+        | "watchlist_added"
+        | "watchlist_removed"
+        | "deck_skipped"
+        | "undone"
+      watch_status: "watched" | "watching" | "on_hold" | "dropped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1055,6 +1259,20 @@ export const Constants = {
     },
   },
   public: {
-    Enums: {},
+    Enums: {
+      tracking_event_kind: [
+        "status_set",
+        "status_cleared",
+        "rated",
+        "rating_cleared",
+        "liked",
+        "unliked",
+        "watchlist_added",
+        "watchlist_removed",
+        "deck_skipped",
+        "undone",
+      ],
+      watch_status: ["watched", "watching", "on_hold", "dropped"],
+    },
   },
 } as const
