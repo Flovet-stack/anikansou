@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 
+import { DataAttribution } from "@/components/layout/data-attribution";
 import { LogOutButton } from "@/features/auth/components/log-out-button";
 import { DisplayNameForm } from "@/features/profiles/components/display-name-form";
 import { getMyProfile } from "@/features/profiles/queries";
@@ -11,14 +12,38 @@ export const metadata = buildMetadata({ title: "Settings", path: "/settings" });
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-8">
-      <h1 className="font-heading text-3xl font-semibold tracking-tight">
+    <div className="mx-auto flex w-full max-w-reading flex-col gap-12 md:gap-16">
+      <h1 className="font-display text-title-l font-extrabold tracking-tight md:text-display-s">
         Settings
       </h1>
-      <Suspense fallback={<div className="h-80" aria-hidden />}>
+      <Suspense fallback={<div className="h-96" aria-hidden />}>
         <AccountSettings />
       </Suspense>
+      {/* Below 1024 px the dataset credit lives here (from 1024: sidebar footer). */}
+      <DataAttribution className="lg:hidden" />
     </div>
+  );
+}
+
+function Panel({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-labelledby={id}
+      className="flex flex-col gap-6 rounded-lg bg-surface-1 p-6 md:p-8"
+    >
+      <h2 id={id} className="font-display text-title-s font-bold">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }
 
@@ -33,38 +58,30 @@ async function AccountSettings() {
   if (!profile.username) redirect("/auth/username?next=%2Fsettings");
 
   return (
-    <>
-      <section
-        aria-labelledby="account-heading"
-        className="flex flex-col gap-4"
-      >
-        <h2 id="account-heading" className="text-lg font-semibold">
-          Account
-        </h2>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
-          <dt className="text-muted-foreground">Username</dt>
+    <div className="flex flex-col gap-12 md:gap-16">
+      <Panel id="account-heading" title="Account">
+        <dl className="grid gap-x-8 gap-y-4 text-body sm:grid-cols-[auto_minmax(0,1fr)]">
+          <dt className="text-small text-muted-foreground sm:text-body">
+            Username
+          </dt>
           <dd className="font-medium break-all">{profile.username}</dd>
-          <dt className="text-muted-foreground">Email</dt>
+          <dt className="text-small text-muted-foreground sm:text-body">
+            Email
+          </dt>
           <dd className="break-all">{profile.email ?? "—"}</dd>
         </dl>
-      </section>
+      </Panel>
 
-      <section
-        aria-labelledby="profile-heading"
-        className="flex flex-col gap-4"
-      >
-        <h2 id="profile-heading" className="text-lg font-semibold">
-          Profile
-        </h2>
+      <Panel id="profile-heading" title="Profile">
         <DisplayNameForm
           displayName={profile.display_name}
           username={profile.username}
         />
-      </section>
+      </Panel>
 
-      <section className="border-t pt-6">
+      <div>
         <LogOutButton />
-      </section>
-    </>
+      </div>
+    </div>
   );
 }

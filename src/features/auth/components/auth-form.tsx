@@ -58,21 +58,21 @@ export function AuthForm({
   const hintId = `${mode}-password-hint`;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <form action={continueWithGoogle}>
         {next ? <input type="hidden" name="next" value={next} /> : null}
-        <Button type="submit" variant="outline" size="lg" className="w-full">
+        <Button type="submit" variant="secondary" className="w-full">
           Continue with Google
         </Button>
       </form>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 text-caption text-text-subtle">
         <span className="h-px flex-1 bg-border" />
         or use email
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      <form action={formAction} className="flex flex-col gap-4" noValidate>
+      <form action={formAction} className="flex flex-col gap-5" noValidate>
         {next ? <input type="hidden" name="next" value={next} /> : null}
 
         <div className="flex flex-col gap-2">
@@ -106,7 +106,7 @@ export function AuthForm({
             }
           />
           {mode === "sign-up" ? (
-            <p id={hintId} className="text-xs text-muted-foreground">
+            <p id={hintId} className="text-caption text-muted-foreground">
               At least 8 characters.
             </p>
           ) : null}
@@ -114,16 +114,16 @@ export function AuthForm({
 
         <FormMessage id={errorId} error={state.error} />
 
-        <Button type="submit" size="lg" disabled={pending}>
+        <Button type="submit" disabled={pending} className="mt-2">
           {pending ? text.pending : text.submit}
         </Button>
       </form>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         {text.switchText}{" "}
         <Link
           href={switchHref}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-semibold text-accent-text underline-offset-4 hover-fine:underline"
         >
           {text.switchLabel}
         </Link>

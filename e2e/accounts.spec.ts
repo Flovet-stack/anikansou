@@ -16,6 +16,13 @@ function formStatus(page: Page) {
   return page.locator('main [role="status"]').filter({ visible: true });
 }
 
+// The shell has one "Main" navigation per breakpoint; only one is visible.
+function mainNav(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Main" })
+    .filter({ visible: true });
+}
+
 function uniqueSuffix() {
   return randomUUID().replaceAll("-", "").slice(0, 10);
 }
@@ -28,7 +35,8 @@ test("sign up with email, choose a username, reach settings and log out", async 
   const username = typedUsername.toLowerCase();
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Log in" }).click();
+  // The home hero also links to log in; use the one in the navigation.
+  await mainNav(page).getByRole("link", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/auth\/login$/);
   await page.getByRole("link", { name: "Create an account" }).click();
   await expect(page).toHaveURL(/\/auth\/sign-up$/);
@@ -93,7 +101,9 @@ test("sign up with email, choose a username, reach settings and log out", async 
 
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+  await expect(
+    mainNav(page).getByRole("link", { name: "Log in" }),
+  ).toBeVisible();
 
   // Logged out for real: settings sends us to login again.
   await page.goto("/settings");

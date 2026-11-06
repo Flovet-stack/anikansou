@@ -36,7 +36,7 @@ test("metadata is in the initial HTML, not streamed in later", async ({
   expect(head).toContain('rel="canonical"');
 });
 
-test("theme toggle switches and persists with no console errors", async ({
+test("the site is always dark, with no theme toggle (decision 0012)", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -45,22 +45,20 @@ test("theme toggle switches and persists with no console errors", async ({
   });
   page.on("pageerror", (error) => errors.push(error.message));
 
+  // A light system preference and a stored "light" choice both stay dark.
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
-
   const html = page.locator("html");
-  const toggle = page.getByRole("button", { name: "Toggle dark mode" });
-
-  await expect(html).not.toHaveClass(/\bdark\b/);
-  await toggle.click();
   await expect(html).toHaveClass(/\bdark\b/);
 
+  await page.evaluate(() => localStorage.setItem("theme", "light"));
   await page.reload();
   await expect(html).toHaveClass(/\bdark\b/);
+  await expect(html).not.toHaveClass(/\blight\b/);
 
-  await toggle.click();
-  await expect(html).not.toHaveClass(/\bdark\b/);
-
+  await expect(
+    page.getByRole("button", { name: /theme|dark mode/i }),
+  ).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
