@@ -1,5 +1,7 @@
 # 02: Accounts
 
+Status: Done (PR #4, merged 2026-11-06)
+
 Brief: Must have #1, "Accounts: sign up, log in, profile". This spec covers the account itself and the smallest profile record. Public profile pages come later.
 
 ## Goal
