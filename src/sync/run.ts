@@ -142,7 +142,7 @@ export async function runImport(options: RunOptions): Promise<RunResult> {
     if (runId !== null) {
       const message = error instanceof Error ? error.message : String(error);
       await db.query(
-        "update catalog.import_runs set status = 'failed', finished_at = now(), error = $2 where id = $1",
+        "update catalog.import_runs set status = 'failed', finished_at = clock_timestamp(), error = $2 where id = $1",
         [runId, message.slice(0, 10_000)],
       );
     }
@@ -345,7 +345,7 @@ async function applyRelease(
   await truncateStaging(db);
   await db.query(
     `update catalog.import_runs set
-       status = 'succeeded', finished_at = now(), entry_count = $2, inserted = $3, updated = $4,
+       status = 'succeeded', finished_at = clock_timestamp(), entry_count = $2, inserted = $3, updated = $4,
        unchanged = $5, retired = $6, revived = $7, merged = $8, split = $9,
        unresolved_relations = $10, details = $11::jsonb
      where id = $1`,
