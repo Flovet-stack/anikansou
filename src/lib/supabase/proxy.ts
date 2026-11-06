@@ -104,7 +104,7 @@ async function redirectTarget(
     if (!(await hasUsername(supabase, userId))) {
       return withNext("/auth/username", next);
     }
-    return next;
+    return "/settings";
   }
 
   if (pathname === "/auth/username") {

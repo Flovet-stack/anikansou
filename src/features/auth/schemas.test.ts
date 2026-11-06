@@ -14,6 +14,10 @@ describe("safeNext", () => {
     "https://evil.example",
     "http://anikansou.test.evil.example/settings",
     "javascript:alert(1)",
+    "/.//evil.example",
+    "/x/..//evil.example",
+    "/%2e//evil.example",
+    "/./%2fevil.example",
     "settings",
     "",
   ])("falls back to the default for %j", (next) => {
@@ -81,6 +85,7 @@ describe("safePathOrNull", () => {
     expect(safePathOrNull("/settings?tab=x")).toBe("/settings?tab=x");
     expect(safePathOrNull("//evil.example")).toBeNull();
     expect(safePathOrNull("https://evil.example")).toBeNull();
+    expect(safePathOrNull("/.//evil.example")).toBeNull();
     expect(safePathOrNull(undefined)).toBeNull();
   });
 });

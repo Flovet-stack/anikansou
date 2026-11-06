@@ -7,6 +7,31 @@ export const DEFAULT_NEXT = "/settings";
 // tabs and newlines, so either can turn a path into another origin.
 const UNSAFE_CHARACTERS = /[\\\u0000-\u001f\u007f]/;
 
+/** No backslashes, control characters or leading `//`, raw or decoded. */
+function isSafePath(
+  value: string,
+  origin: string,
+  { allowAbsolute = false } = {},
+): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return false;
+  }
+  for (const candidate of [value, decoded]) {
+    if (UNSAFE_CHARACTERS.test(candidate) || candidate.startsWith("//")) {
+      return false;
+    }
+  }
+  if (allowAbsolute) return true;
+  try {
+    return new URL(value, origin).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The only way to turn a user-supplied `next` value into a redirect target.
  * Returns a same-origin path (with query and hash), or `fallback`.
@@ -18,18 +43,7 @@ export function safeNext(
 ): string {
   if (!next) return fallback;
 
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(next);
-  } catch {
-    return fallback;
-  }
-
-  for (const value of [next, decoded]) {
-    if (UNSAFE_CHARACTERS.test(value) || value.startsWith("//")) {
-      return fallback;
-    }
-  }
+  if (!isSafePath(next, origin, { allowAbsolute: true })) return fallback;
 
   // Only paths, or absolute URLs that already point at this origin.
   if (!next.startsWith("/") && !next.startsWith(`${origin}/`)) return fallback;
@@ -42,7 +56,10 @@ export function safeNext(
   }
   if (url.origin !== origin) return fallback;
 
-  return `${url.pathname}${url.search}${url.hash}`;
+  // Check what we return, not only what we got: dot segments such as
+  // `/.//evil.example` normalise to `//evil.example`, another origin.
+  const path = `${url.pathname}${url.search}${url.hash}`;
+  return isSafePath(path, origin) ? path : fallback;
 }
 
 /**

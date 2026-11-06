@@ -77,9 +77,17 @@ test("sign up with email, choose a username, reach settings and log out", async 
     fullPage: true,
   });
 
-  // Signed-in users are sent away from the auth pages.
+  // Signed-in users are sent away from the auth pages, to settings, whatever
+  // next says.
   await page.goto("/auth/login");
   await expect(page).toHaveURL(/\/settings$/);
+  const response = await page.request.get("/auth/login?next=/.//evil.example", {
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(307);
+  expect(response.headers().location).toMatch(
+    /^(http:\/\/localhost:3100)?\/settings$/,
+  );
   await page.goto("/auth/username");
   await expect(page).toHaveURL(/\/settings$/);
 
@@ -122,6 +130,18 @@ test("logging in returns to next, and ignores an unsafe next", async ({
 
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/$/);
+
+  // Signing up again with the same email says so.
+  await page.goto("/auth/sign-up");
+  await field(page, "Email").fill(email);
+  await field(page, "Password").fill(`pw-${uniqueSuffix()}`);
+  await page
+    .getByRole("button", { name: "Create account" })
+    .filter({ visible: true })
+    .click();
+  await expect(formAlert(page)).toContainText(
+    "An account with this email already exists",
+  );
 
   await page.goto("/auth/login?next=%2F%2Fevil.example");
   await field(page, "Email").fill(email);
