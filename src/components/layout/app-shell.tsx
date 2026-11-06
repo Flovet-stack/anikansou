@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AccountNav, TopBarAction } from "./account-link";
 import { DataAttribution } from "./data-attribution";
 import { Logo } from "./logo";
+import { SectionNav } from "./section-nav";
 import { SkipLink } from "./skip-link";
 
 /**
@@ -10,8 +11,8 @@ import { SkipLink } from "./skip-link";
  * - under 768 px: a slim top bar, full-width content, a bottom tab bar;
  * - 768–1023 px: a 72 px icon rail;
  * - from 1024 px: a 240 px sidebar with labels.
- * The right rail (from 1280 px) renders only on pages that fill it; none do
- * yet. No section nav items exist until their features ship (spec 04, #10).
+ * The right rail (from 1280 px) renders only on pages that fill it (the deck
+ * draws its own). Section nav items appear as their features ship: Rate (spec 05).
  *
  * Focus order is skip link → navigation → content at every width: the phone
  * tab bar comes before <main> in the DOM and is pinned to the bottom with CSS.
@@ -34,27 +35,38 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label="Main"
           className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(var(--spacing-tabbar)+env(safe-area-inset-bottom))] items-start justify-center gap-2 border-t border-border/60 bg-background/95 px-4 pt-1 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         >
+          <SectionNav placement="tabbar" />
           <AccountNav placement="tabbar" />
         </nav>
 
         {/* Rail (768–1023) and sidebar (1024+) */}
-        <aside className="sticky top-0 hidden h-dvh flex-col justify-between border-r border-border/60 py-6 md:flex md:items-center lg:items-stretch lg:px-4">
-          <div className="flex flex-col gap-8">
-            <Logo compact className="lg:hidden" />
-            <Logo className="hidden px-2 lg:inline-flex" />
-          </div>
-          <div className="flex flex-col gap-6">
-            <nav
-              aria-label="Main"
-              className="flex flex-col items-center gap-1 lg:hidden"
-            >
+        <aside className="sticky top-0 hidden h-dvh flex-col gap-10 border-r border-border/60 py-6 md:flex md:items-center lg:items-stretch lg:px-4">
+          <Logo compact className="lg:hidden" />
+          <Logo className="hidden px-2 lg:inline-flex" />
+          {/* One navigation per width: sections at the top, account at the bottom. */}
+          <nav
+            aria-label="Main"
+            className="flex flex-1 flex-col items-center justify-between lg:hidden"
+          >
+            <div className="flex flex-col items-center gap-1">
+              <SectionNav placement="rail" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
               <AccountNav placement="rail" />
-            </nav>
-            <nav aria-label="Main" className="hidden flex-col gap-1 lg:flex">
+            </div>
+          </nav>
+          <nav
+            aria-label="Main"
+            className="hidden flex-1 flex-col justify-between lg:flex"
+          >
+            <div className="flex flex-col gap-1">
+              <SectionNav placement="sidebar" />
+            </div>
+            <div className="flex flex-col gap-1">
               <AccountNav placement="sidebar" />
-            </nav>
-            <DataAttribution className="hidden px-2 lg:block" />
-          </div>
+            </div>
+          </nav>
+          <DataAttribution className="hidden px-2 lg:block" />
         </aside>
 
         <main

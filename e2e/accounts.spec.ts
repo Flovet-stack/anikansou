@@ -56,7 +56,9 @@ test("sign up with email, choose a username, reach settings and log out", async 
   await field(page, "Username").fill(typedUsername);
   await page.getByRole("button", { name: "Save username" }).click();
 
-  await expect(page).toHaveURL(/\/settings$/);
+  // Spec 05: new users land on the deck.
+  await expect(page).toHaveURL(/\/rate$/);
+  await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByText(username, { exact: true })).toBeVisible();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
@@ -85,19 +87,20 @@ test("sign up with email, choose a username, reach settings and log out", async 
     fullPage: true,
   });
 
-  // Signed-in users are sent away from the auth pages, to settings, whatever
-  // next says.
+  // Signed-in users are sent away from the auth pages: to a safe `next`, or
+  // the deck by default (spec 05).
   await page.goto("/auth/login");
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/rate$/);
   const response = await page.request.get("/auth/login?next=/.//evil.example", {
     maxRedirects: 0,
   });
   expect(response.status()).toBe(307);
   expect(response.headers().location).toMatch(
-    /^(http:\/\/localhost:3100)?\/settings$/,
+    /^(http:\/\/localhost:3100)?\/rate$/,
   );
   await page.goto("/auth/username");
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/rate$/);
+  await page.goto("/settings");
 
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -157,7 +160,7 @@ test("logging in returns to next, and ignores an unsafe next", async ({
   await field(page, "Email").fill(email);
   await field(page, "Password").fill(password);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/^http:\/\/localhost:3100\/settings$/);
+  await expect(page).toHaveURL(/^http:\/\/localhost:3100\/rate$/);
 });
 
 test("auth pages and settings fit a 360 px screen", async ({
@@ -188,7 +191,9 @@ test("auth pages and settings fit a 360 px screen", async ({
 
   await field(page, "Username").fill(`m_${uniqueSuffix()}`);
   await page.getByRole("button", { name: "Save username" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/rate$/);
+  expect(await fitsWidth()).toBe(true);
+  await page.goto("/settings");
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
   expect(await fitsWidth()).toBe(true);
   await page.screenshot({

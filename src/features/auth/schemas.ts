@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-/** Where users go after signing in when no safe `next` is given. */
-export const DEFAULT_NEXT = "/settings";
+/**
+ * Where users go after signing in when no safe `next` is given: the deck,
+ * since the core loop is "sign up, swipe" (decision 0009, spec 05).
+ */
+export const DEFAULT_NEXT = "/rate";
 
 // Backslashes and control characters: browsers treat `/\` like `//` and strip
 // tabs and newlines, so either can turn a path into another origin.

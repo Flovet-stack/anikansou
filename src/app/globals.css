@@ -195,6 +195,18 @@
   }
 }
 
+/* The milestone burst (decision 0009): one short ring of accent, ≤ 600 ms. */
+@keyframes milestone-burst {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(14);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

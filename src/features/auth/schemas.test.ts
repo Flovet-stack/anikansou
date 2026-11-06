@@ -21,12 +21,12 @@ describe("safeNext", () => {
     "settings",
     "",
   ])("falls back to the default for %j", (next) => {
-    expect(safeNext(next, origin)).toBe("/settings");
+    expect(safeNext(next, origin)).toBe("/rate");
   });
 
   it("falls back when next is missing", () => {
-    expect(safeNext(null, origin)).toBe("/settings");
-    expect(safeNext(undefined, origin)).toBe("/settings");
+    expect(safeNext(null, origin)).toBe("/rate");
+    expect(safeNext(undefined, origin)).toBe("/rate");
   });
 
   it("passes same-origin paths through with query and hash", () => {

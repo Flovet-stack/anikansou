@@ -33,7 +33,7 @@ Update the status in the same PR that changes it: the PR that starts the work se
 | [02: Accounts](02-accounts.md)                     | Done    |
 | [03: Internationalization setup](03-i18n-setup.md) | Blocked |
 | [04: UI refresh](04-ui-refresh.md)                 | Done    |
-| [05: Swipe deck](05-swipe-deck.md)                 | Ready   |
+| [05: Swipe deck](05-swipe-deck.md)                 | Done    |
 
 ## Suggested sections
 

@@ -1,6 +1,6 @@
 # 05: Swipe-to-rate deck
 
-Status: Ready (decisions 0009–0012 approved; build after spec 04 is merged) · Written: 2026-11-06
+Status: Done (PR #12; decisions 0009–0012 and 0014 approved) · Written: 2026-11-06
 
 Brief: Must have #2 (swipe-to-rate deck), with the parts of #3 (statuses), #4 (watchlist), #5 (half-star rating) and #6 (like) that the deck needs. This is the product's core loop and differentiator: "a fast, gamified swipe-to-rate experience".
 
@@ -10,9 +10,9 @@ A signed-in fan opens **Rate** and moves through anime, best-known titles first.
 
 ## Decisions
 
-Implements [0009](../docs/decisions/0009-swipe-deck-interaction.md) (touch and web models, rating step, undo, motion, unaired titles, progress), [0010](../docs/decisions/0010-deck-content-and-order.md) (eligibility including unaired and adult titles, order, private scores, card content) and [0011](../docs/decisions/0011-tracking-data-model.md) (`user_anime` and events). Follows [0002](../docs/decisions/0002-app-shell-and-navigation.md) (the Rate nav item ships with this spec), [0004](../docs/decisions/0004-placeholder-poster-art.md), [0005](../docs/decisions/0005-status-and-action-colours.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [the design brief](../docs/design/design-brief.md).
+Implements [0009](../docs/decisions/0009-swipe-deck-interaction.md) (touch and web models, rating step, undo, motion, unaired titles, progress), [0010](../docs/decisions/0010-deck-content-and-order.md) (eligibility including unaired and adult titles, order, private scores, card content) and [0011](../docs/decisions/0011-tracking-data-model.md) (`user_anime` and events), with the deck order from [0014](../docs/decisions/0014-deck-order.md) (aired first, small samples damped), which replaces 0010's order. Follows [0002](../docs/decisions/0002-app-shell-and-navigation.md) (the Rate nav item ships with this spec), [0004](../docs/decisions/0004-placeholder-poster-art.md), [0005](../docs/decisions/0005-status-and-action-colours.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [the design brief](../docs/design/design-brief.md).
 
-**Depends on:** [spec 04](04-ui-refresh.md) (tokens, shell, `PosterArt`, restyled base components) and [spec 03](03-poster-sources.md) (`getPosterSources`). Both merge first. Decisions 0009, 0010, 0011 and 0012 are approved.
+**Depends on:** [spec 04](04-ui-refresh.md) (tokens, shell, `PosterArt`, restyled base components) and [spec 03](03-poster-sources.md) (`getPosterSources`). Both merge first. Decisions 0009–0012 and 0014 are approved.
 
 ## Acceptance criteria
 
@@ -28,7 +28,7 @@ Implements [0009](../docs/decisions/0009-swipe-deck-interaction.md) (touch and w
    - `deck_skip(anime_id, via)` (`via` is `not_seen` on touch or `passed` on the web; recorded as a `deck_skipped` event with that value),
    - `deck_undo(event_id)`: reverses that event's effect for the caller only, records an `undone` event, and refuses events that aren't the caller's or are already undone.
      All run as the caller (`security invoker`), validate inputs in the database, and are executable by `authenticated` only. **Status and rating writes are refused for `upcoming` anime** (0009, 0010).
-3. **`deck_next(cursor, page_size)`** per 0010: `security definer`, `set search_path = ''`, `authenticated` only, page size 1–20. Applies every eligibility rule in 0010, orders by the private score, returns the listed fields plus an opaque cursor and **never the score**. It also returns `is_upcoming` and `is_adult` flags. The adult-tag list is checked against the live catalog and written into the migration with a comment.
+3. **`deck_next(cursor, page_size)`** per 0010: `security definer`, `set search_path = ''`, `authenticated` only, page size 1–20. Applies every eligibility rule in 0010, orders as 0014 describes (from a private, precomputed view), returns the listed fields plus an opaque cursor and **never the score**. It also returns `is_upcoming` and `is_adult` flags. The adult-tag list is checked against the live catalog and written into the migration with a comment.
 4. `EXPLAIN ANALYZE` of `deck_next` for a user with 0 and with 2,000 tracked titles is pasted into the PR; both under 50 ms on the Supabase project.
 5. `src/types/database.types.ts` regenerated from the project.
 
