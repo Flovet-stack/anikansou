@@ -23,6 +23,7 @@
 
 - Run the checks above and show the evidence (command output, screenshots for UI) before saying a task is done.
 - Run the `reviewer` subagent on the diff against the task's spec before opening a PR.
+- After finishing any task, run /product-team Workflow E and post the review on the PR before saying done.
 
 ## Ask first
 
