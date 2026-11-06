@@ -1,5 +1,7 @@
 # 04: UI refresh of the existing pages
 
+Status: Ready (decisions 0001–0007 and 0012 approved) · Written: 2026-11-06
+
 Brief: Design direction ("no generic UI", dark first, sidebar shell) and Must have #24 (dark mode). This task puts the approved design system into code and restyles the pages that exist today. It adds no new features.
 
 ## Goal
@@ -9,8 +11,6 @@ The app stops looking like a default shadcn/Next.js template. The tokens, fonts,
 ## Decisions
 
 Implements [0001](../docs/decisions/0001-visual-foundations.md) (colour, type, spacing, radius, motion; dark tokens only), [0012](../docs/decisions/0012-dark-theme-only.md) (dark theme only for now), [0002](../docs/decisions/0002-app-shell-and-navigation.md) (app shell), [0003](../docs/decisions/0003-icon-set.md) (Hugeicons via icons-animated), [0004](../docs/decisions/0004-placeholder-poster-art.md) (generated fallback poster) and [0007](../docs/decisions/0007-interaction-and-disclosure.md) §1–2 (explicitness tiers, hover). Screen direction from [the design brief](../docs/design/design-brief.md) §11. Uses the poster-sources contract from [spec 03](03-poster-sources.md) (`resolvePosterUrls` output: an ordered list of URLs) but doesn't depend on it being merged.
-
-**Merge order:** decisions 0001–0008 and the design brief are written in another branch. That branch lands first; this spec's links assume it has.
 
 ## Acceptance criteria
 

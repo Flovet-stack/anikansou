@@ -1,9 +1,9 @@
 # 0001: Visual foundations (colour, type, spacing, shape, motion)
 
-- **Status:** Approved
+- **Status:** Approved; the light-theme part is superseded by [0012](0012-dark-theme-only.md)
 - **Proposed:** 2026-11-06 by the product team (roles: UI, UX, Product, Frontend, Tech Lead)
 - **Approved:** 2026-11-06 by Flovet (Kohaku accent, Bricolage Grotesque + Onest, type scale and palette). Amended at approval: more generous spacing; like, watchlist and status colours are split out to [0005](0005-status-and-action-colours.md).
-- **Specs:** —
+- **Specs:** specs/04-ui-refresh.md
 
 ## Context
 

@@ -1,5 +1,7 @@
 # 05: Swipe-to-rate deck
 
+Status: Ready (decisions 0009–0012 approved; build after spec 04 is merged) · Written: 2026-11-06
+
 Brief: Must have #2 (swipe-to-rate deck), with the parts of #3 (statuses), #4 (watchlist), #5 (half-star rating) and #6 (like) that the deck needs. This is the product's core loop and differentiator: "a fast, gamified swipe-to-rate experience".
 
 ## Goal
