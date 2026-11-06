@@ -45,9 +45,16 @@ export async function verifyFile(
   }
 }
 
-export function readLines(path: string): AsyncIterable<string> {
-  return createInterface({
+/**
+ * Lines of a file. A generator, so the file is opened only when iteration
+ * starts: a readline interface created early emits lines while the caller is
+ * still awaiting something else (the importer awaits the database first), and
+ * those lines are lost, leaving the loop waiting forever.
+ */
+export async function* readLines(path: string): AsyncGenerator<string> {
+  const lines = createInterface({
     input: createReadStream(path, { encoding: "utf8" }),
     crlfDelay: Infinity,
   });
+  for await (const line of lines) yield line;
 }
