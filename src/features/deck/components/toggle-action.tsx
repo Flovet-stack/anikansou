@@ -1,10 +1,20 @@
 "use client";
 
 import { HugeiconsBookmark01Icon } from "@/components/ui/hugeicons-bookmark-01";
+import { HugeiconsCircleCheckIcon } from "@/components/ui/hugeicons-circle-check";
 import { HugeiconsHeartIcon } from "@/components/ui/hugeicons-heart";
 import { cn } from "@/lib/utils";
 
 const KINDS = {
+  watched: {
+    on: "Watched",
+    off: "Mark watched",
+    icon: HugeiconsCircleCheckIcon,
+    text: "text-state-watched",
+    tint: "bg-[color-mix(in_oklab,var(--state-watched)_16%,var(--surface-2))]",
+    hover:
+      "hover-fine:bg-[color-mix(in_oklab,var(--state-watched)_12%,var(--surface-2))] hover-fine:text-state-watched",
+  },
   like: {
     on: "Liked",
     off: "Like",
@@ -26,7 +36,7 @@ const KINDS = {
 } as const;
 
 /**
- * Like and watchlist toggles (decisions 0005 and 0007 §2): each has its own
+ * Watched, like and watchlist toggles (decisions 0005 and 0007 §2): each has its own
  * colour and icon, fills when on, and tints toward its colour on hover.
  */
 export function ToggleAction({

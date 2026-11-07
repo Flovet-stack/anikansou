@@ -1,3 +1,5 @@
+import type { WatchStatus } from "@/features/tracking/schemas";
+
 /**
  * Pure deck rules from decision 0009, kept apart from React so they can be
  * unit-tested.
@@ -141,17 +143,25 @@ export function popUndo(stack: UndoEntry[]): {
  * Which controls a card offers (0009): unaired anime can't be rated, given a
  * status or marked "Seen it"; like and watchlist always work.
  */
-export function controlsFor(card: { isUpcoming: boolean }): {
+export function controlsFor(card: {
+  isUpcoming: boolean;
+  state: { status: WatchStatus | null };
+}): {
+  /** The Watched toggle (0015: the deck's only status). */
+  watched: boolean;
+  /** Stars are shown for aired anime... */
   rating: boolean;
-  status: boolean;
+  /** ...and can be used only once it's Watched (0015). */
+  canRate: boolean;
   seenIt: boolean;
   like: true;
   watchlist: true;
 } {
   const aired = !card.isUpcoming;
   return {
+    watched: aired,
     rating: aired,
-    status: aired,
+    canRate: aired && card.state.status === "watched",
     seenIt: aired,
     like: true,
     watchlist: true,

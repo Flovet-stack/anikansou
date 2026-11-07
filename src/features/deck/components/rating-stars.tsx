@@ -28,6 +28,7 @@ export function RatingStars({
   clearable = false,
   disabled = false,
   label = "Your rating",
+  describedBy,
 }: {
   value: number | null;
   onChange: (rating: number | null) => void;
@@ -35,6 +36,8 @@ export function RatingStars({
   clearable?: boolean;
   disabled?: boolean;
   label?: string;
+  /** Id of a line explaining why the stars are disabled. */
+  describedBy?: string;
 }) {
   const id = useId();
   const box = size === "lg" ? "size-14" : "size-10";
@@ -46,7 +49,9 @@ export function RatingStars({
         aria-label={
           value ? `${label}: ${starsLabel(value)}` : `${label}: not rated`
         }
-        className="flex items-center"
+        aria-describedby={describedBy}
+        aria-disabled={disabled || undefined}
+        className={cn("flex items-center", disabled && "opacity-50")}
       >
         {[1, 2, 3, 4, 5].map((star) => {
           const full = value !== null && value >= star * 2;

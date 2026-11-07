@@ -109,18 +109,32 @@ describe("undo stack", () => {
 });
 
 describe("controlsFor", () => {
-  it("offers rating, status and Seen it only for aired anime", () => {
-    expect(controlsFor({ isUpcoming: false })).toMatchObject({
+  const none = { status: null };
+  it("offers Watched, the stars and Seen it only for aired anime", () => {
+    expect(controlsFor({ isUpcoming: false, state: none })).toMatchObject({
+      watched: true,
       rating: true,
-      status: true,
       seenIt: true,
     });
-    expect(controlsFor({ isUpcoming: true })).toMatchObject({
+    expect(controlsFor({ isUpcoming: true, state: none })).toMatchObject({
+      watched: false,
       rating: false,
-      status: false,
+      canRate: false,
       seenIt: false,
       like: true,
       watchlist: true,
     });
+  });
+
+  it("lets the stars be used only once it's Watched (0015)", () => {
+    expect(controlsFor({ isUpcoming: false, state: none }).canRate).toBe(false);
+    for (const status of ["watching", "on_hold", "dropped"] as const) {
+      expect(
+        controlsFor({ isUpcoming: false, state: { status } }).canRate,
+      ).toBe(false);
+    }
+    expect(
+      controlsFor({ isUpcoming: false, state: { status: "watched" } }).canRate,
+    ).toBe(true);
   });
 });

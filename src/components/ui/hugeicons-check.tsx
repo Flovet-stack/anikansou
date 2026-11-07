@@ -21,6 +21,8 @@ import { motion, useAnimation } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
+import { useControlHover } from "./use-control-hover";
+
 export interface HugeiconsCheckIconHandle {
   startAnimation: () => void;
   stopAnimation: () => void;
@@ -91,25 +93,25 @@ const HugeiconsCheckIcon = forwardRef<
       {...props}
       ref={iconRootRef}
       onMouseEnter={(event) => {
-        if (!iconAccessibility.controlled && !iconAccessibility.reduced) {
+        if (!iconAccessibility.isControlled() && !iconAccessibility.reduced) {
           handleMouseEnter(event);
         }
         onMouseEnter?.(event);
       }}
       onMouseLeave={(event) => {
-        if (!iconAccessibility.controlled) {
+        if (!iconAccessibility.isControlled()) {
           handleMouseLeave(event);
         }
         onMouseLeave?.(event);
       }}
       onFocus={(event) => {
-        if (!iconAccessibility.controlled && !iconAccessibility.reduced) {
+        if (!iconAccessibility.isControlled() && !iconAccessibility.reduced) {
           iconAccessibility.startAnimation();
         }
         props.onFocus?.(event);
       }}
       onBlur={(event) => {
-        if (!iconAccessibility.controlled) {
+        if (!iconAccessibility.isControlled()) {
           iconAccessibility.stopAnimation();
         }
         props.onBlur?.(event);
@@ -185,6 +187,13 @@ function useIconAccessibility(
     [],
   );
   useImperativeHandle(ref, () => api, [api]);
+  // Vendoring edit 3: play when the surrounding button or link is hovered
+  // or focused, not only the icon itself (spec 06).
+  const hasControl = useControlHover(
+    rootRef,
+    api.startAnimation,
+    api.stopAnimation,
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -279,7 +288,11 @@ function useIconAccessibility(
   return {
     ...api,
     rootRef,
-    controlled: ref != null,
+    // Driven by a ref or by the surrounding control: the icon's own
+    // hover handlers stand down.
+    // A function, read when an event fires: by then the effect has found
+    // the control (a value read during render would always be false).
+    isControlled: () => ref != null || hasControl.current,
     reduced,
     reduceDefinition<T>(definition: T): T {
       if (

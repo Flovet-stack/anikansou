@@ -1,6 +1,6 @@
 # 06: Deck shows Watched only, and icons animate on their control's hover
 
-Status: Ready (decision 0015 approved) · Written: 2026-11-07
+Status: Done (PR #14; decision 0015 approved) · Written: 2026-11-07
 
 Brief: refines Must have #2 (swipe-to-rate deck) and #5 (rating); fixes the icon behaviour the brief's Icons section asks for ("animate on interaction only (hover, press, state change)").
 

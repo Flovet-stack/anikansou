@@ -21,7 +21,7 @@ import { HugeiconsCircleCheckIcon } from "@/components/ui/hugeicons-circle-check
 import { HugeiconsEyeOffIcon } from "@/components/ui/hugeicons-eye-off";
 import { HugeiconsUndoIcon } from "@/components/ui/hugeicons-undo";
 import { deckSeen, setLike, setWatchlist } from "@/features/tracking/actions";
-import { type WatchStatus, ratingToStars } from "@/features/tracking/schemas";
+import { ratingToStars } from "@/features/tracking/schemas";
 import { cn } from "@/lib/utils";
 
 import {
@@ -34,7 +34,6 @@ import type { DeckApi } from "../use-deck";
 import { CardDetails } from "./card-details";
 import { DeckPoster } from "./deck-poster";
 import { RatingStars } from "./rating-stars";
-import { StatusPicker } from "./status-picker";
 import { ToggleAction } from "./toggle-action";
 
 const HINT_KEY = "anikansou.deck.touch-hint";
@@ -58,26 +57,14 @@ export function TouchDeck({
   const reduceMotion = useReducedMotion();
   // Per-card UI state, keyed by anime id so a new top card starts fresh.
   const [rateFor, setRateFor] = useState<number | null>(null);
-  const [statusFor, setStatusFor] = useState<{
-    animeId: number;
-    status: WatchStatus;
-  } | null>(null);
   const [noticeFor, setNoticeFor] = useState<number | null>(null);
   const animeId = card?.animeId ?? null;
   const step: "deck" | "rate" =
     rateFor !== null && rateFor === animeId ? "rate" : "deck";
-  const status: WatchStatus =
-    statusFor && statusFor.animeId === animeId ? statusFor.status : "watched";
   const notice =
     noticeFor !== null && noticeFor === animeId ? "Not aired yet" : null;
   const setStep = useCallback(
     (next: "deck" | "rate") => setRateFor(next === "rate" ? animeId : null),
-    [animeId],
-  );
-  const setStatusChoice = useCallback(
-    (next: WatchStatus) => {
-      if (animeId !== null) setStatusFor({ animeId, status: next });
-    },
     [animeId],
   );
   const cardRef = useRef<HTMLDivElement>(null);
@@ -222,7 +209,7 @@ export function TouchDeck({
     setStep("rate");
   }, [card, setStep, x]);
 
-  /** Saves "Seen it" with the chosen status and rating, then moves on. */
+  /** Saves "Seen it" as Watched with the rating (0015), then moves on. */
   const saveSeen = useCallback(
     async (rating: number | null) => {
       if (!card) return;
@@ -230,8 +217,8 @@ export function TouchDeck({
       deck.advance();
       const ok = await deck.save(
         card,
-        { ...card.state, status, rating },
-        () => deckSeen(card.animeId, status, rating),
+        { ...card.state, status: "watched", rating },
+        () => deckSeen(card.animeId, "watched", rating),
         {
           label:
             rating === null ? "Saved" : `Rated ${ratingToStars(rating)} stars`,
@@ -243,7 +230,7 @@ export function TouchDeck({
       );
       if (!ok) deck.show(card.animeId);
     },
-    [card, deck, nextLine, status],
+    [card, deck, nextLine],
   );
 
   const toggleLike = useCallback(() => {
@@ -406,11 +393,6 @@ export function TouchDeck({
             value={null}
             onChange={(rating) => rating !== null && void saveSeen(rating)}
             size="lg"
-          />
-          <StatusPicker
-            value={status}
-            onChange={(next) => next && setStatusChoice(next)}
-            clearable={false}
           />
           <div className="flex flex-wrap gap-3">
             <Button variant="secondary" onClick={() => void saveSeen(null)}>
