@@ -24,7 +24,7 @@ export async function getDeckPage(after: number | null): Promise<DeckPage> {
   const rows = data ?? [];
   const ids = rows.map((row) => row.anime_id);
   const [posters, liked] = await Promise.all([
-    getPosterSources(ids),
+    getPosterSources(ids, { lookUp: true }),
     likedAmong(ids),
   ]);
 

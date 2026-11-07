@@ -143,6 +143,42 @@ export type Database = {
           },
         ]
       }
+      anime_image_misses: {
+        Row: {
+          anime_id: number
+          checked_at: string
+          kind: string
+          source_id: number
+        }
+        Insert: {
+          anime_id: number
+          checked_at?: string
+          kind?: string
+          source_id: number
+        }
+        Update: {
+          anime_id?: number
+          checked_at?: string
+          kind?: string
+          source_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_image_misses_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anime_image_misses_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "image_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anime_redirects: {
         Row: {
           created_at: string
@@ -870,6 +906,7 @@ export type Database = {
     }
     Functions: {
       is_adult: { Args: { p_anime_id: number }; Returns: boolean }
+      record_anilist_covers: { Args: { p_covers: Json }; Returns: number }
     }
     Enums: {
       alias_source: "import" | "override"
