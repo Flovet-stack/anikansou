@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     // Component tests opt in with a `// @vitest-environment jsdom` comment.
     environment: "node",
+    // A component's first render loads Motion and jsdom; under a full
+    // parallel run (and the pre-push hook) that alone can pass 5 s.
+    testTimeout: 30_000,
     include: ["src/**/*.test.{ts,tsx}"],
     // Database tests need Supabase: run them with `pnpm test:db`.
     exclude: ["src/**/*.db.test.ts"],
