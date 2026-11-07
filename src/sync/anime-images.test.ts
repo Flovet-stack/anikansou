@@ -62,7 +62,7 @@ afterEach(async () => {
 });
 
 describe("image sources", () => {
-  it("are seeded in order, with AniList switched off", async () => {
+  it("are seeded in order, with AniList switched on since spec 08", async () => {
     const { rows } = await pg.query(
       "select slug, priority, is_enabled, url_prefix from catalog.image_sources order by priority",
     );
@@ -77,7 +77,7 @@ describe("image sources", () => {
       {
         slug: "anilist",
         priority: 30,
-        is_enabled: false,
+        is_enabled: true,
         url_prefix: "https://s4.anilist.co/",
       },
     ]);
@@ -193,7 +193,7 @@ describe("source prefixes", () => {
       {
         slug: "anilist",
         url_prefix: "https://s4.anilist.co/file/",
-        is_enabled: false,
+        is_enabled: true,
       },
     ]);
   });
@@ -226,12 +226,13 @@ describe("poster access", () => {
       expect(await candidates()).toEqual([
         { anime_id: frieren, source: "inhouse" },
         { anime_id: frieren, source: "tmdb" },
+        { anime_id: frieren, source: "anilist" },
       ]);
       // The table itself hides the same rows, not just the view.
       const { rows } = await pg.query(
         "select count(*)::int as n from catalog.anime_images",
       );
-      expect(rows[0]).toEqual({ n: 2 });
+      expect(rows[0]).toEqual({ n: 3 });
     },
   );
 
@@ -240,18 +241,20 @@ describe("poster access", () => {
       "update catalog.image_sources set is_enabled = false where slug = 'inhouse'",
     );
     await pg.exec("set role anon");
-    expect(await candidates()).toEqual([{ anime_id: frieren, source: "tmdb" }]);
+    expect(await candidates()).toEqual([
+      { anime_id: frieren, source: "tmdb" },
+      { anime_id: frieren, source: "anilist" },
+    ]);
   });
 
-  it("shows AniList once it is switched on", async () => {
+  it("hides AniList again if it is switched off", async () => {
     await pg.exec(
-      "update catalog.image_sources set is_enabled = true where slug = 'anilist'",
+      "update catalog.image_sources set is_enabled = false where slug = 'anilist'",
     );
     await pg.exec("set role anon");
     expect(await candidates()).toEqual([
       { anime_id: frieren, source: "inhouse" },
       { anime_id: frieren, source: "tmdb" },
-      { anime_id: frieren, source: "anilist" },
     ]);
   });
 
