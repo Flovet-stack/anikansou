@@ -1,6 +1,6 @@
 # Project brief: AniKansou
 
-Last updated: 2026-11-05
+Last updated: 2026-11-07
 
 This brief describes the whole product. It does not change when a phase or sprint is planned: phase plans and task specs live in `specs/`.
 
@@ -81,8 +81,8 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 
 - Only source: anime-offline-database, cedya77 fork (https://github.com/cedya77/anime-offline-database).
 - Licence: ODbL 1.0 + DbCL 1.0. Credit both cedya77/anime-offline-database and manami-project/anime-offline-database (archived original).
-- Forbidden: any external anime API (AniList, MyAnimeList, Jikan, Kitsu, AniDB, TMDB, TheTVDB, etc.) and any paid API.
-- Images (decision 0008): posters come from `catalog.anime_images`, ranked in-house → TMDB (links added by hand, non-commercial, credited) → AniList (off until AniList gives written permission) → the generated fallback poster. Dataset image URLs are still never hotlinked, and no image API is called.
+- Forbidden: any external anime API (AniList, MyAnimeList, Jikan, Kitsu, AniDB, TMDB, TheTVDB, etc.) and any paid API, with one exception: AniList's API for cover images of titles on screen (decision 0017).
+- Images (decision 0008): posters come from `catalog.anime_images`, ranked in-house → TMDB (links added by hand, non-commercial, credited) → AniList (on since 0017: looked up server-side only for titles about to be shown, link stored, without AniList's written permission, a risk Flovet accepted) → the generated fallback poster. Dataset image URLs are still never hotlinked, and no other image API is called.
 
 ## Design direction
 
@@ -109,6 +109,9 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
 
+- 2026-11-07: AniList cover images, looked up only for titles on screen and stored as links; written permission not yet obtained (0017).
+- 2026-11-07: Library at `/library` with status, watchlist and liked shelves (0016).
+- 2026-11-07: The deck offers Watched only, and a rating needs Watched (0015).
 - 2026-11-06: Design system approved (`docs/design/design-brief.md`, decisions 0001–0007): Kohaku amber accent on warm near-black, Bricolage Grotesque + Onest, a colour and icon per action and status, 2:3 title cards with the title beneath, responsive sidebar/bottom-tab shell, Hugeicons, generated fallback posters. Artwork source decided in 0008 (see below).
 - 2026-11-06: Posters: ranked image sources (in-house, TMDB, AniList off until permitted) with the generated poster as the last fallback (0008).
 - 2026-11-06: The product team researches and makes every decision; Flovet approves each one before anything is built. Decisions are logged in `docs/decisions/`, and Workflow E reviews completed work against them.

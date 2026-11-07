@@ -34,7 +34,7 @@
 
 ## Never
 
-- Call any external anime API (AniList, MyAnimeList, Jikan, Kitsu, AniDB, TMDB, TheTVDB, etc.). The only data source is the one named in the brief.
+- Call any external anime API (AniList, MyAnimeList, Jikan, Kitsu, AniDB, TMDB, TheTVDB, etc.). The only data source is the one named in the brief. One exception (decision 0017): AniList's API, only to look up cover images for titles about to be shown on screen, from the server, as 0017 describes.
 - Edit a migration that has already run. Add a new one instead.
 - Use `any` or `@ts-ignore`.
 - Commit secrets (`.env.local`, keys, tokens).
