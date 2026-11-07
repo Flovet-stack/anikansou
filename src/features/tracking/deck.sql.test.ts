@@ -197,7 +197,9 @@ describe("deck_next", () => {
   });
 
   it("leaves out acted-on anime but keeps liked-only ones, per user", async () => {
-    await rpc(ALICE, `select public.set_rating($1, 8::smallint) r`, [ids.top]);
+    await rpc(ALICE, `select public.deck_seen($1, 'watched', 8::smallint) r`, [
+      ids.top,
+    ]);
     await rpc(ALICE, `select public.set_like($1, true) r`, [ids.second]);
     const cards = (await deck(ALICE)).map((c) => c.anime_id);
     expect(cards).not.toContain(ids.top);
@@ -302,11 +304,107 @@ describe("tracking writes", () => {
     ).rejects.toThrow(/aired/);
   });
 
-  it("sets Watched when a rating comes with no status", async () => {
+  it("refuses a rating unless the anime is Watched (0015)", async () => {
+    await expect(
+      rpc(ALICE, `select public.set_rating($1, 7::smallint) r`, [ids.top]),
+    ).rejects.toThrow(/watched to rate/);
+    await rpc(ALICE, `select public.set_status($1, 'dropped') r`, [ids.top]);
+    await expect(
+      rpc(ALICE, `select public.set_rating($1, 7::smallint) r`, [ids.top]),
+    ).rejects.toThrow(/watched to rate/);
+    await expect(
+      rpc(ALICE, `select public.deck_seen($1, 'watching', 7::smallint) r`, [
+        ids.top,
+      ]),
+    ).rejects.toThrow(/watched to rate/);
+    await rpc(ALICE, `select public.set_status($1, 'watched') r`, [ids.top]);
     await rpc(ALICE, `select public.set_rating($1, 7::smallint) r`, [ids.top]);
     expect(await state(ALICE, ids.top)).toMatchObject([
       { status: "watched", rating: 7 },
     ]);
+  });
+
+  it("refuses a rating without Watched even through a direct table write", async () => {
+    await expect(
+      as(ALICE, () =>
+        rows(
+          `insert into public.user_anime (user_id, anime_id, status, rating) values ($1, $2, 'dropped', 6)`,
+          [ALICE, ids.top],
+        ),
+      ),
+    ).rejects.toThrow(/watched to rate/);
+  });
+
+  it("clears the rating with Watched, in one event that undo reverses", async () => {
+    await rpc(ALICE, `select public.deck_seen($1, 'watched', 8::smallint) r`, [
+      ids.top,
+    ]);
+    const off = (await rpc(ALICE, `select public.set_status($1, null) r`, [
+      ids.top,
+    ])) as { event_id: number };
+    expect(await state(ALICE, ids.top)).toEqual([]);
+    const kinds = (await events(ids.top)).map((e) => e.kind);
+    expect(kinds).toEqual(["rated", "status_cleared"]);
+    await rpc(ALICE, `select public.deck_undo($1) r`, [off.event_id]);
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "watched", rating: 8 },
+    ]);
+    // Moving to another status clears it too.
+    await rpc(ALICE, `select public.set_status($1, 'on_hold') r`, [ids.top]);
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "on_hold", rating: null },
+    ]);
+  });
+
+  it("keeps older rows (a rating with another status) editable and undoable", async () => {
+    // Saved before 0015's rule, so seeded with the rule's trigger off.
+    await rows(
+      `alter table public.user_anime disable trigger user_anime_check_aired`,
+    );
+    await rows(
+      `insert into public.user_anime (user_id, anime_id, status, rating) values ($1, $2, 'watching', 8)`,
+      [ALICE, ids.top],
+    );
+    await rows(
+      `alter table public.user_anime enable trigger user_anime_check_aired`,
+    );
+
+    // Edits that leave the rating and status alone go through.
+    await rpc(ALICE, `select public.set_like($1, true) r`, [ids.top]);
+    await rpc(ALICE, `select public.set_watchlist($1, true) r`, [ids.top]);
+    // Clearing the rating works, and undo puts the old state back.
+    const cleared = (await rpc(ALICE, `select public.set_rating($1, null) r`, [
+      ids.top,
+    ])) as { event_id: number };
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "watching", rating: null },
+    ]);
+    await rpc(ALICE, `select public.deck_undo($1) r`, [cleared.event_id]);
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "watching", rating: 8, liked: true, watchlisted: true },
+    ]);
+    // Marking it Watched keeps the rating; undo restores Watching with it.
+    const watched = (await rpc(
+      ALICE,
+      `select public.set_status($1, 'watched') r`,
+      [ids.top],
+    )) as { event_id: number };
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "watched", rating: 8 },
+    ]);
+    await rpc(ALICE, `select public.deck_undo($1) r`, [watched.event_id]);
+    expect(await state(ALICE, ids.top)).toMatchObject([
+      { status: "watching", rating: 8 },
+    ]);
+    // The undo's permission doesn't outlive it.
+    await expect(
+      as(ALICE, () =>
+        rows(
+          `update public.user_anime set rating = 5 where user_id = $1 and anime_id = $2`,
+          [ALICE, ids.top],
+        ),
+      ),
+    ).rejects.toThrow(/watched to rate/);
   });
 
   it("refuses ratings outside 1–10", async () => {
@@ -326,6 +424,11 @@ describe("tracking writes", () => {
     ).rejects.toThrow(/aired/);
     await expect(
       rpc(ALICE, `select public.set_rating($1, 6::smallint) r`, [ids.upcoming]),
+    ).rejects.toThrow(/aired|watched to rate/);
+    await expect(
+      rpc(ALICE, `select public.deck_seen($1, 'watched', 6::smallint) r`, [
+        ids.upcoming,
+      ]),
     ).rejects.toThrow(/aired/);
     // Like and watchlist are fine.
     await rpc(ALICE, `select public.set_watchlist($1, true) r`, [ids.upcoming]);
@@ -342,7 +445,9 @@ describe("tracking writes", () => {
   });
 
   it("undo restores the previous state exactly", async () => {
-    await rpc(ALICE, `select public.set_rating($1, 6::smallint) r`, [ids.top]);
+    await rpc(ALICE, `select public.deck_seen($1, 'watched', 6::smallint) r`, [
+      ids.top,
+    ]);
     const r = (await rpc(ALICE, `select public.set_rating($1, 9::smallint) r`, [
       ids.top,
     ])) as { event_id: number };

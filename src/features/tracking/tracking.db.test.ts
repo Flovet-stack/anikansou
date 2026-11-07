@@ -70,8 +70,9 @@ describe("tracking", () => {
   });
 
   it("lets a user rate and read back their own state", async () => {
-    const { error } = await a.client.rpc("set_rating", {
+    const { error } = await a.client.rpc("deck_seen", {
       p_anime_id: aired,
+      p_status: "watched",
       p_rating: 9,
     });
     expect(error).toBeNull();
@@ -141,6 +142,26 @@ describe("tracking", () => {
       p_status: "watched",
     });
     expect(early.error?.message).toMatch(/aired/);
+  });
+
+  it("refuses a rating without Watched, through the functions and the table (0015)", async () => {
+    const { error: listed } = await b.client.rpc("set_status", {
+      p_anime_id: aired,
+      p_status: "watching",
+    });
+    expect(listed).toBeNull();
+    const viaFunction = await b.client.rpc("set_rating", {
+      p_anime_id: aired,
+      p_rating: 6,
+    });
+    expect(viaFunction.error?.message).toMatch(/watched to rate/);
+    const viaTable = await b.client
+      .from("user_anime")
+      .update({ rating: 6 })
+      .eq("user_id", b.id)
+      .eq("anime_id", aired)
+      .select();
+    expect(viaTable.error?.message).toMatch(/watched to rate/);
   });
 
   it("serves a deck without scores and without the user's rated anime", async () => {

@@ -46,7 +46,7 @@ async function titleText(page: Page): Promise<string> {
 test.describe("web model (mouse and keyboard)", () => {
   test.slow();
 
-  test("rate, set a status, like, watchlist, pass, go back, undo, reload", async ({
+  test("watch and rate, un-watch, like, watchlist, pass, go back, undo, reload", async ({
     page,
   }) => {
     await signUpToDeck(page);
@@ -55,23 +55,52 @@ test.describe("web model (mouse and keyboard)", () => {
     ).toHaveAttribute("aria-current", "page");
 
     const t1 = await titleText(page);
+    // 0015: Watched is the deck's only status, and the stars need it.
+    for (const name of ["Watching", "On hold", "Dropped"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
+        0,
+      );
+    }
+    await expect(
+      page.getByRole("button", { name: "4.5 stars" }),
+    ).toBeDisabled();
+    await expect(page.getByText("Mark it watched to rate it.")).toBeVisible();
+    await page.getByRole("button", { name: "Mark watched" }).click();
+    await expect(
+      page.getByRole("button", { name: "Watched", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "4.5 stars" }).click();
     await expect(
       page.getByRole("button", { name: "4.5 stars" }),
     ).toHaveAttribute("aria-pressed", "true");
-    // A rating with no status means Watched (0009).
-    await expect(page.getByRole("button", { name: "Watched" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
 
+    // Un-watching removes the rating too, and one undo brings both back.
     await page.getByRole("button", { name: "Next anime" }).click();
     const t2 = await titleText(page);
     expect(t2).not.toBe(t1);
-    await page.getByRole("button", { name: "Watching" }).click();
+    await page.getByRole("button", { name: "Mark watched" }).click();
+    await page.getByRole("button", { name: "2 stars" }).click();
+    await expect(page.getByRole("button", { name: "2 stars" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.getByRole("button", { name: "Watched", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: "Watching" }),
+      page.getByRole("button", { name: "Mark watched" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "2 stars" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "2 stars" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await page.keyboard.press("Control+z");
+    await expect(
+      page.getByRole("button", { name: "Watched", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "2 stars" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     await page.getByRole("button", { name: "Next anime" }).click();
     const t3 = await titleText(page);
@@ -95,6 +124,7 @@ test.describe("web model (mouse and keyboard)", () => {
     const t6 = await titleText(page);
     await page.getByRole("button", { name: "Previous anime" }).click();
     await expect(title(page)).toHaveText(t5);
+    await page.getByRole("button", { name: "Mark watched" }).click();
     await page.getByRole("button", { name: "3 stars" }).click();
     await expect(page.getByRole("button", { name: "3 stars" })).toHaveAttribute(
       "aria-pressed",
@@ -110,13 +140,18 @@ test.describe("web model (mouse and keyboard)", () => {
       page.getByRole("button", { name: "4.5 stars" }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    // Undo the last change (the rating on t5): back to it, unrated.
+    // Undo the last two changes (the rating, then Watched, on t5): back to
+    // it, untouched.
     await page.keyboard.press("Control+z");
     await expect(title(page)).toHaveText(t5);
     await expect(page.getByRole("button", { name: "3 stars" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
+    await page.keyboard.press("Control+z");
+    await expect(
+      page.getByRole("button", { name: "Mark watched" }),
+    ).toBeVisible();
 
     // Move past t6 untouched: that records a pass.
     await page.getByRole("button", { name: "Next anime" }).click();
@@ -134,9 +169,9 @@ test.describe("web model (mouse and keyboard)", () => {
     await expect(title(page)).not.toHaveText(t6);
     await passSaved;
 
-    // After a reload: rated, given a status or watchlisted anime are gone, and
-    // so is the passed one (t6); the liked-only one (t3) stays with its heart;
-    // t5 is back (its pass was cleared by rating it, then the rating undone).
+    // After a reload: watched or watchlisted anime are gone, and so is the
+    // passed one (t6); the liked-only one (t3) stays with its heart; t5 is
+    // back (its pass was cleared by acting on it, then both actions undone).
     await page.reload();
     await expect(title(page)).toHaveText(t3);
     await expect(page.getByRole("button", { name: "Liked" })).toHaveAttribute(
@@ -155,7 +190,25 @@ test.describe("web model (mouse and keyboard)", () => {
   test("works with the keyboard only", async ({ page }) => {
     await signUpToDeck(page);
     await titleText(page);
+    // Rating keys wait for Watched (0015) and say so.
+    await page.keyboard.press("9");
+    await expect(page.locator("[aria-live=polite]")).toContainText(
+      "Mark it watched first",
+    );
+    // W then 9 straight away: when the Watched save lands, the rating that's
+    // still saving must stay on screen (regression: it used to blink off).
+    await page.keyboard.press("w");
     await page.keyboard.press("9"); // 4.5 stars
+    await expect(page.getByText("Marked watched").first()).toBeVisible();
+    expect(
+      await page
+        .getByRole("button", { name: "4.5 stars" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    await expect(
+      page.getByRole("button", { name: "Watched", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Rated 4.5 stars").first()).toBeVisible();
     await expect(
       page.getByRole("button", { name: "4.5 stars" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -164,10 +217,9 @@ test.describe("web model (mouse and keyboard)", () => {
     await page.keyboard.press("ArrowRight");
     await expect(title(page)).not.toHaveText(t1);
     await page.keyboard.press("w");
-    await expect(page.getByRole("button", { name: "Watched" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByRole("button", { name: "Watched", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
 
     await page.keyboard.press("j");
     await page.keyboard.press("l");
@@ -193,6 +245,7 @@ test.describe("web model (mouse and keyboard)", () => {
     await expect(title(page)).not.toHaveText(passedTitle);
     await page.keyboard.press("ArrowLeft");
     await expect(title(page)).toHaveText(passedTitle);
+    await page.keyboard.press("w");
     await page.keyboard.press("6"); // 3 stars
     await expect(page.getByRole("button", { name: "3 stars" })).toHaveAttribute(
       "aria-pressed",
@@ -233,7 +286,10 @@ test.describe("touch model", () => {
 
     // Right: "Seen it", then one tap to rate and move on.
     await swipe(page, 260, 0);
-    await expect(page.getByRole("group", { name: `Rate ${t1}` })).toBeVisible();
+    const step = page.getByRole("group", { name: `Rate ${t1}` });
+    await expect(step).toBeVisible();
+    // 0015: no status row; "Seen it" always means Watched.
+    await expect(step.getByRole("group", { name: "Status" })).toHaveCount(0);
     await page.getByRole("button", { name: "4.5 stars" }).click();
     await expect(title(page)).not.toHaveText(t1);
 
