@@ -17,8 +17,9 @@ import { EMPTY_STATE, type TrackingState } from "@/features/tracking/schemas";
 import type { LibraryCard, ShelfCounts } from "../types";
 import { LibraryView } from "./library-view";
 
+const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh }),
 }));
 vi.mock("../actions", () => ({ loadLibraryPage: vi.fn() }));
 vi.mock("@/features/tracking/actions", () => ({
@@ -50,6 +51,7 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  refresh.mockClear();
   vi.useRealTimers();
   vi.clearAllMocks();
 });
@@ -86,6 +88,7 @@ function setup() {
       shelf="watched"
       sort="updated"
       sortInUrl
+      revision="r1"
       initialCards={[
         card(1, "Frieren", WATCHED),
         card(2, "Mushishi", { ...WATCHED, rating: 6 }),
@@ -207,6 +210,7 @@ describe("LibraryView (spec 07)", () => {
         shelf="watching"
         sort="updated"
         sortInUrl
+        revision="r1"
         initialCards={[
           card(3, "Bocchi", { ...EMPTY_STATE, status: "watching" }),
         ]}
@@ -319,5 +323,101 @@ describe("LibraryView (spec 07)", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: /^Frieren/ })).toBeNull(),
     );
+  });
+
+  it("takes in a refresh's fresh data only once nothing is going on", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(tracking.setLike).mockResolvedValue({
+      ok: true,
+      eventId: 51,
+      state: { ...WATCHED, liked: true },
+    });
+    const view = (revision: string, cards: LibraryCard[], watched: number) => (
+      <LibraryView
+        shelf="watched"
+        sort="updated"
+        sortInUrl
+        revision={revision}
+        initialCards={cards}
+        initialNext={null}
+        initialCounts={{ ...COUNTS, watched }}
+      />
+    );
+    const first = [card(1, "Frieren", WATCHED), card(2, "Mushishi", WATCHED)];
+    const { rerender } = render(view("r1", first, 2));
+
+    // A save here, so a toast is up when the refresh arrives.
+    const bar = screen.getByRole("group", {
+      name: "Quick actions for Frieren",
+    });
+    fireEvent.click(within(bar).getByRole("button", { name: "Like" }));
+    await screen.findAllByText("Liked");
+
+    const fresh = [card(3, "Bocchi", WATCHED), ...first];
+    rerender(view("r2", fresh, 3));
+    expect(tab(/^Watched, 2 titles$/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Bocchi/ })).toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5100);
+    });
+    // That snapshot may predate the Like made here, so it asks again...
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(tab(/^Watched, 2 titles$/)).toBeTruthy();
+    // ...and takes in the next one, with nothing edited since.
+    rerender(view("r3", fresh, 3));
+    await waitFor(() => expect(tab(/^Watched, 3 titles$/)).toBeTruthy());
+    expect(screen.getByRole("button", { name: /^Bocchi/ })).toBeTruthy();
+  });
+
+  it("holds a refresh while the edit sheet is open or a save is in flight", async () => {
+    let finish: (value: tracking.TrackingResult) => void = () => {};
+    vi.mocked(tracking.setWatchlist).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const view = (revision: string, cards: LibraryCard[], watched: number) => (
+      <LibraryView
+        shelf="watched"
+        sort="updated"
+        sortInUrl
+        revision={revision}
+        initialCards={cards}
+        initialNext={null}
+        initialCounts={{ ...COUNTS, watched }}
+      />
+    );
+    const first = [card(1, "Frieren", WATCHED), card(2, "Mushishi", WATCHED)];
+    const fresh = [card(3, "Bocchi", WATCHED), ...first];
+    const { rerender } = render(view("r1", first, 2));
+
+    // Sheet open: a refresh waits.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Frieren, Watched, rated 4 stars" }),
+    );
+    const sheet = await screen.findByRole("dialog");
+    rerender(view("r2", fresh, 3));
+    expect(
+      within(sheet).getByRole("heading", { name: "Frieren" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(sheet, { key: "Escape" });
+    // Closed, nothing else going on: taken in.
+    await waitFor(() => expect(tab(/^Watched, 3 titles$/)).toBeTruthy());
+
+    // A save in flight: the next refresh waits for it.
+    const bar = screen.getByRole("group", { name: "Quick actions for Bocchi" });
+    fireEvent.click(within(bar).getByRole("button", { name: "Watchlist" }));
+    rerender(view("r3", [card(4, "Mononoke", WATCHED), ...fresh], 4));
+    expect(screen.queryByRole("button", { name: /^Mononoke/ })).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+    await act(async () => {
+      finish({
+        ok: true,
+        eventId: 61,
+        state: { ...WATCHED, watchlisted: true },
+      });
+    });
+    expect(screen.queryByRole("button", { name: /^Mononoke/ })).toBeNull();
   });
 });

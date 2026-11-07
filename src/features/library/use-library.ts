@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ActionToastProps } from "@/components/feedback/action-toast";
@@ -54,12 +55,15 @@ export type SaveIntent = {
 export function useLibrary({
   shelf,
   sort,
+  revision,
   initialCards,
   initialNext,
   initialCounts,
 }: {
   shelf: Shelf;
   sort: Sort;
+  /** Changes when the server renders the page again (a refresh). */
+  revision: string;
   initialCards: LibraryCard[];
   initialNext: LibraryCursor | null;
   initialCounts: ShelfCounts;
@@ -84,10 +88,66 @@ export function useLibrary({
     setFocusRequest((last) => ({ target, n: (last?.n ?? 0) + 1 }));
   }, []);
 
+  // Fresh server data from a refresh (e.g. the deck's last saves landed after
+  // this page opened: spec 05 #15). Taken in only when nothing is going on
+  // here (no save in flight, no toast, no open sheet), so it never wipes an
+  // edit, an Undo or the sheet.
+  type Incoming = {
+    cards: LibraryCard[];
+    next: LibraryCursor | null;
+    counts: ShelfCounts;
+  };
+  const [seenRevision, setSeenRevision] = useState(revision);
+  const [incoming, setIncoming] = useState<Incoming | null>(null);
+  if (revision !== seenRevision) {
+    setSeenRevision(revision);
+    setIncoming({
+      cards: initialCards,
+      next: initialNext,
+      counts: initialCounts,
+    });
+  }
+  const incomingRef = useRef<Incoming | null>(null);
+
   const cardsRef = useRef(cards);
   useEffect(() => {
     cardsRef.current = cards;
   }, [cards]);
+  const nextRef = useRef(next);
+  useEffect(() => {
+    nextRef.current = next;
+  }, [next]);
+  const loadingRef = useRef(false);
+  /** Titles added by "Show more", kept when fresh page-1 data comes in. */
+  const extraIds = useRef(new Set<number>());
+  // Edits made here since the snapshot we'd take in was asked for. A
+  // snapshot asked for before an edit may predate it, so it's refreshed
+  // again instead of shown.
+  const router = useRouter();
+  const edits = useRef(0);
+  const editsAtRequest = useRef(0);
+
+  /** When the focused card leaves the grid, focus its nearest neighbour. */
+  const keepFocus = useCallback(
+    (before: LibraryCard[], after: LibraryCard[]) => {
+      const focused =
+        typeof document === "undefined"
+          ? null
+          : document.activeElement?.closest<HTMLElement>("[data-card-item]");
+      const focusedId = focused ? Number(focused.dataset.cardItem) : null;
+      if (focusedId === null) return;
+      const kept = new Set(after.map((c) => c.animeId));
+      if (kept.has(focusedId)) return;
+      const at = before.findIndex((c) => c.animeId === focusedId);
+      const later = before.slice(at + 1).find((c) => kept.has(c.animeId));
+      const earlier = before
+        .slice(0, Math.max(at, 0))
+        .reverse()
+        .find((c) => kept.has(c.animeId));
+      requestFocus((later ?? earlier)?.animeId ?? "heading");
+    },
+    [requestFocus],
+  );
   const toastId = useRef(0);
   const undoRef = useRef<Undo | null>(null);
   const toastRef = useRef<Toast | null>(null);
@@ -120,26 +180,11 @@ export function useLibrary({
       const before = cardsRef.current;
       const result = pruneLeft(before, shelf, held);
       if (result.length === before.length) return;
-      // A keyboard user's focus moves to the nearest card that stays.
-      const focused =
-        typeof document === "undefined"
-          ? null
-          : document.activeElement?.closest<HTMLElement>("[data-card-item]");
-      const focusedId = focused ? Number(focused.dataset.cardItem) : null;
-      if (focusedId !== null && !result.some((c) => c.animeId === focusedId)) {
-        const at = before.findIndex((c) => c.animeId === focusedId);
-        const kept = new Set(result.map((c) => c.animeId));
-        const after = before.slice(at + 1).find((c) => kept.has(c.animeId));
-        const earlier = before
-          .slice(0, Math.max(at, 0))
-          .reverse()
-          .find((c) => kept.has(c.animeId));
-        requestFocus((after ?? earlier)?.animeId ?? "heading");
-      }
+      keepFocus(before, result);
       cardsRef.current = result;
       setCards(result);
     },
-    [shelf, requestFocus],
+    [shelf, keepFocus],
   );
 
   const showToast = useCallback(
@@ -154,18 +199,54 @@ export function useLibrary({
     [prune],
   );
 
+  const adoptIfIdle = useCallback(() => {
+    const fresh = incomingRef.current;
+    if (!fresh || toastRef.current || heldRef.current !== null) return;
+    if (loadingRef.current) return;
+    for (const count of pending.current.values()) if (count > 0) return;
+    incomingRef.current = null;
+    setIncoming(null);
+    if (edits.current !== editsAtRequest.current) {
+      // Edited here since: this snapshot may not have those edits yet.
+      editsAtRequest.current = edits.current;
+      router.refresh();
+      return;
+    }
+    // Fresh first page, then what "Show more" had loaded, from where it was.
+    const before = cardsRef.current;
+    const freshIds = new Set(fresh.cards.map((c) => c.animeId));
+    const extra = before.filter(
+      (c) => extraIds.current.has(c.animeId) && !freshIds.has(c.animeId),
+    );
+    const merged = [...fresh.cards, ...extra];
+    keepFocus(before, merged);
+    cardsRef.current = merged;
+    setCards(merged);
+    setCounts(fresh.counts);
+    if (extra.length === 0) {
+      extraIds.current.clear();
+      setNext(fresh.next);
+    }
+  }, [keepFocus, router]);
+  useEffect(() => {
+    incomingRef.current = incoming;
+    adoptIfIdle();
+  }, [incoming, adoptIfIdle]);
+
   const dismissToast = useCallback(() => {
     undoRef.current = null;
     toastRef.current = null;
     setToast(null);
     prune(null);
-  }, [prune]);
+    adoptIfIdle();
+  }, [prune, adoptIfIdle]);
 
   const undo = useCallback(async () => {
     const entry = undoRef.current;
     if (!entry) return;
     undoRef.current = null;
     const id = entry.animeId;
+    edits.current += 1;
     const card = cardsRef.current.find((c) => c.animeId === id);
     // Held while the undo saves, so a toast closing meanwhile can't prune it.
     pending.current.set(id, (pending.current.get(id) ?? 0) + 1);
@@ -192,6 +273,7 @@ export function useLibrary({
       const id = card.animeId;
       const live = cardsRef.current.find((c) => c.animeId === id);
       if (!live) return;
+      edits.current += 1;
       const inFlight = pending.current.get(id) ?? 0;
       if (inFlight === 0) confirmed.current.set(id, live.state);
       pending.current.set(id, inFlight + 1);
@@ -253,7 +335,8 @@ export function useLibrary({
   }, [save]);
 
   const loadMore = useCallback(async () => {
-    if (!next || loadingMore) return;
+    if (!next || loadingRef.current) return;
+    loadingRef.current = true;
     setLoadingMore(true);
     setLoadError(null);
     let result: Awaited<ReturnType<typeof loadLibraryPage>>;
@@ -262,13 +345,16 @@ export function useLibrary({
     } catch {
       result = { error: NETWORK };
     }
+    loadingRef.current = false;
     setLoadingMore(false);
     if ("error" in result) {
       setLoadError(result.error);
+      adoptIfIdle();
       return;
     }
     const known = new Set(cardsRef.current.map((card) => card.animeId));
     const fresh = result.cards.filter((card) => !known.has(card.animeId));
+    for (const card of fresh) extraIds.current.add(card.animeId);
     const updated = [...cardsRef.current, ...fresh];
     cardsRef.current = updated;
     setCards(updated);
@@ -280,7 +366,8 @@ export function useLibrary({
         ? "That's everything on this shelf."
         : `${fresh.length} more ${fresh.length === 1 ? "title" : "titles"} loaded.`,
     );
-  }, [next, loadingMore, shelf, sort, requestFocus]);
+    adoptIfIdle();
+  }, [next, shelf, sort, requestFocus, adoptIfIdle]);
 
   return {
     cards,
@@ -306,7 +393,8 @@ export function useLibrary({
     release: useCallback(() => {
       heldRef.current = null;
       prune(toastRef.current?.animeId ?? null);
-    }, [prune]),
+      adoptIfIdle();
+    }, [prune, adoptIfIdle]),
     /** Ctrl/Cmd+Z: the toast's Undo, if it has one. */
     undo,
   };

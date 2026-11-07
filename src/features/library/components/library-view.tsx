@@ -41,6 +41,7 @@ export function LibraryView({
   shelf,
   sort,
   sortInUrl,
+  revision,
   initialCards,
   initialNext,
   initialCounts,
@@ -49,6 +50,8 @@ export function LibraryView({
   sort: Sort;
   /** False when the URL had no `?sort=`: the remembered sort then applies. */
   sortInUrl: boolean;
+  /** Changes with each server render; see useLibrary. */
+  revision: string;
   initialCards: LibraryCard[];
   initialNext: LibraryCursor | null;
   initialCounts: ShelfCounts;
@@ -56,6 +59,7 @@ export function LibraryView({
   const library = useLibrary({
     shelf,
     sort,
+    revision,
     initialCards,
     initialNext,
     initialCounts,

@@ -65,6 +65,18 @@ async function deckIds(client: Client, count: number): Promise<number[]> {
   return ids;
 }
 
+/** Delays every server action (they POST with a Next-Action header). */
+async function slowServerActions(page: Page, ms: number) {
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST" || !request.headers()["next-action"]) {
+      return route.fallback();
+    }
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    await route.fallback();
+  });
+}
+
 function shelfTab(page: Page, name: RegExp) {
   return page.getByRole("navigation", { name: "Shelves" }).getByRole("link", {
     name,
@@ -190,6 +202,52 @@ test.describe("Library (mouse and keyboard)", () => {
     await expect(
       page.getByRole("button", { name: `${t2}, on your watchlist` }),
     ).toBeVisible();
+  });
+
+  test("a rating made just before leaving the deck shows in the Library without a reload", async ({
+    page,
+  }) => {
+    await signUp(page);
+    const t1 =
+      (await page.locator("main section h2").first().textContent())?.trim() ??
+      "";
+    // Slow the deck's saves down, so the Library is on screen before they
+    // land: it must catch up, not keep showing the old state (spec 05 #15).
+    await slowServerActions(page, 2500);
+    await page.getByRole("button", { name: "Mark watched" }).click();
+    await page.getByRole("button", { name: "4.5 stars" }).click();
+    await page
+      .getByRole("link", { name: "Library" })
+      .filter({ visible: true })
+      .click();
+    await expect(page).toHaveURL(/\/library$/);
+    await expect(shelfTab(page, /^Watched, 0 titles$/)).toBeVisible();
+    await expect(shelfTab(page, /^Watched, 1 title$/)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByRole("button", { name: `${t1}, Watched, rated 4.5 stars` }),
+    ).toBeVisible();
+  });
+
+  test("closing the tab while deck saves are unsent asks first, even from the Library", async ({
+    page,
+  }) => {
+    await signUp(page);
+    await slowServerActions(page, 4000);
+    await page.getByRole("button", { name: "Mark watched" }).click();
+    await page.getByRole("button", { name: "4.5 stars" }).click();
+    await page
+      .getByRole("link", { name: "Library" })
+      .filter({ visible: true })
+      .click();
+    await expect(page).toHaveURL(/\/library$/);
+    // The rating is still waiting behind Watched: closing would drop it.
+    const dialog = page.waitForEvent("dialog");
+    await page.close({ runBeforeUnload: true });
+    const prompt = await dialog;
+    expect(prompt.type()).toBe("beforeunload");
+    await prompt.accept();
   });
 
   test("Show more loads the next 48 and moves focus to the first new card", async ({

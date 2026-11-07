@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -145,11 +146,72 @@ export function useDeck({
   // undo right after an action apply exactly as the user made them (spec 05
   // edge cases). The UI never waits for the queue.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
-  const enqueue = useCallback(<T>(task: () => Promise<T>): Promise<T> => {
-    const run = queue.current.then(task, task);
-    queue.current = run.catch(() => undefined);
-    return run;
+  // Work not finished yet (queued calls, and an undo from its click), with a
+  // way to wait until there is none; and calls not sent yet.
+  const outstanding = useRef(0);
+  const unsent = useRef(0);
+  const idleWaiters = useRef<(() => void)[]>([]);
+  const track = useCallback((delta: number) => {
+    outstanding.current += delta;
+    if (outstanding.current === 0) {
+      idleWaiters.current.splice(0).forEach((resolve) => resolve());
+    }
   }, []);
+  const enqueue = useCallback(
+    <T>(task: () => Promise<T>): Promise<T> => {
+      track(1);
+      unsent.current += 1;
+      const start = () => {
+        unsent.current -= 1;
+        return task();
+      };
+      const run = queue.current.then(start, start);
+      queue.current = run.catch(() => undefined).finally(() => track(-1));
+      return run;
+    },
+    [track],
+  );
+
+  // Leaving with saves still running (spec 05 #15: nothing silently lost).
+  // Leaving the deck in the app hides it (Cache Components keep it in an
+  // <Activity>) and its queue keeps running; once the last save lands, the
+  // page you moved to renders again with it (the Library takes it in when
+  // idle). Closing or reloading the tab drops calls not sent yet, so until
+  // they are sent the browser asks first, even while the deck is hidden.
+  const router = useRouter();
+  const onBeforeUnload = useCallback((event: BeforeUnloadEvent) => {
+    if (unsent.current === 0) return;
+    event.preventDefault();
+    event.returnValue = "";
+  }, []);
+  const refreshQueued = useRef(false);
+  const shown = useRef(false);
+  useEffect(() => {
+    shown.current = true;
+    window.addEventListener("beforeunload", onBeforeUnload);
+    const count = outstanding;
+    const waiters = idleWaiters;
+    const queuedRefresh = refreshQueued;
+    const visible = shown;
+    return () => {
+      visible.current = false;
+      if (count.current === 0) {
+        window.removeEventListener("beforeunload", onBeforeUnload);
+        return;
+      }
+      if (queuedRefresh.current) return;
+      queuedRefresh.current = true;
+      waiters.current.push(() => {
+        queuedRefresh.current = false;
+        // Back on the deck by now? Then it still needs the guard.
+        if (!visible.current) {
+          window.removeEventListener("beforeunload", onBeforeUnload);
+        }
+        router.refresh();
+      });
+    };
+  }, [router, onBeforeUnload]);
+
   // The undo stack, also kept in a ref so undo reads it after the queue drains.
   const undoRef = useRef<UndoEntry[]>([]);
   const setUndo = useCallback((stack: UndoEntry[]) => {
@@ -395,36 +457,57 @@ export function useDeck({
   }, [skip]);
 
   /** Undoes the last saved change and returns the anime it touched. */
+  const finishUndo = useCallback(
+    async (entry: UndoEntry): Promise<number | null> => {
+      const result = await enqueue(() => safely(() => deckUndo(entry.eventId)));
+      if (!result.ok) {
+        setUndo(pushUndo(undoRef.current, entry));
+        showToast(result.error, false);
+        setAnnouncement(result.error);
+        return null;
+      }
+      const card = cards.find((c) => c.animeId === entry.animeId);
+      if (card && card.state.rating !== null && result.state.rating === null) {
+        countRating(-1);
+      } else if (
+        card &&
+        card.state.rating === null &&
+        result.state.rating !== null
+      ) {
+        countRating(1);
+      }
+      updateState(entry.animeId, result.state);
+      const position = cards.findIndex((c) => c.animeId === entry.animeId);
+      if (position >= 0) setIndex(position);
+      showToast(`Undone: ${entry.label.toLowerCase()}`, false);
+      setAnnouncement(
+        `Undone. Back to ${card?.title ?? "the previous anime"}.`,
+      );
+      return entry.animeId;
+    },
+    [cards, countRating, enqueue, setUndo, showToast, updateState],
+  );
+
   const undo = useCallback(async (): Promise<number | null> => {
-    // Let saves already on their way finish, so undo takes the latest one.
-    await queue.current;
-    const { entry, rest } = popUndo(undoRef.current);
-    if (!entry) return null;
-    setUndo(rest);
-    const result = await enqueue(() => safely(() => deckUndo(entry.eventId)));
-    if (!result.ok) {
-      setUndo(pushUndo(undoRef.current, entry));
-      showToast(result.error, false);
-      setAnnouncement(result.error);
-      return null;
+    // Counted from the click, so leaving straight after waits for it too;
+    // and not sent yet until its call is queued.
+    track(1);
+    unsent.current += 1;
+    let handedOff = false;
+    try {
+      // Let saves already on their way finish, so undo takes the latest one.
+      await queue.current;
+      const { entry, rest } = popUndo(undoRef.current);
+      unsent.current -= 1;
+      handedOff = true;
+      if (!entry) return null;
+      setUndo(rest);
+      return await finishUndo(entry);
+    } finally {
+      if (!handedOff) unsent.current -= 1;
+      track(-1);
     }
-    const card = cards.find((c) => c.animeId === entry.animeId);
-    if (card && card.state.rating !== null && result.state.rating === null) {
-      countRating(-1);
-    } else if (
-      card &&
-      card.state.rating === null &&
-      result.state.rating !== null
-    ) {
-      countRating(1);
-    }
-    updateState(entry.animeId, result.state);
-    const position = cards.findIndex((c) => c.animeId === entry.animeId);
-    if (position >= 0) setIndex(position);
-    showToast(`Undone: ${entry.label.toLowerCase()}`, false);
-    setAnnouncement(`Undone. Back to ${card?.title ?? "the previous anime"}.`);
-    return entry.animeId;
-  }, [cards, countRating, enqueue, setUndo, showToast, updateState]);
+  }, [finishUndo, setUndo, track]);
 
   const describe = useCallback((card: DeckCard): string => {
     const facts = [

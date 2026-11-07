@@ -52,10 +52,14 @@ async function Library({
     getLibraryPage(shelf, sort, null),
     getShelfCounts(),
   ]);
+  // A new id per server render, so the view can tell a refresh (after the
+  // deck's last saves land, spec 05 #15) brought fresh data.
+  const revision = crypto.randomUUID();
   return (
     <LibraryView
       // A new shelf or sort starts fresh.
       key={`${shelf}|${sort}`}
+      revision={revision}
       shelf={shelf}
       sort={sort}
       sortInUrl={urlSort !== null}
