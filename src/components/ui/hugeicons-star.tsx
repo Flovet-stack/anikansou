@@ -12,6 +12,8 @@ import { motion, useAnimation, useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
+import { useControlHover } from "./use-control-hover";
+
 export interface HugeiconsStarIconHandle {
   startAnimation: () => void;
   stopAnimation: () => void;
@@ -65,6 +67,10 @@ const HugeiconsStarIcon = forwardRef<
       startAnimation,
       stopAnimation,
     ]);
+    // Vendoring edit 3: play when the surrounding button or link is hovered
+    // or focused, not only the icon itself (spec 06).
+    const rootRef = useRef<HTMLSpanElement>(null);
+    const hasControl = useControlHover(rootRef, startAnimation, stopAnimation);
     useEffect(() => {
       const media = window.matchMedia("(prefers-reduced-motion: reduce)");
       const updatePreference = () => {
@@ -87,21 +93,22 @@ const HugeiconsStarIcon = forwardRef<
     return (
       <span
         {...props}
+        ref={rootRef}
         className={cn("inline-flex shrink-0", className)}
         onMouseEnter={(event) => {
-          if (!ref) startAnimation();
+          if (!ref && !hasControl.current) startAnimation();
           onMouseEnter?.(event);
         }}
         onMouseLeave={(event) => {
-          if (!ref) stopAnimation();
+          if (!ref && !hasControl.current) stopAnimation();
           onMouseLeave?.(event);
         }}
         onFocus={(event) => {
-          if (!ref) startAnimation();
+          if (!ref && !hasControl.current) startAnimation();
           onFocus?.(event);
         }}
         onBlur={(event) => {
-          if (!ref) stopAnimation();
+          if (!ref && !hasControl.current) stopAnimation();
           onBlur?.(event);
         }}
       >

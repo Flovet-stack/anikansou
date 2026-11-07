@@ -12,7 +12,7 @@ import {
   setStatus,
   setWatchlist,
 } from "@/features/tracking/actions";
-import { type WatchStatus, ratingToStars } from "@/features/tracking/schemas";
+import { ratingToStars } from "@/features/tracking/schemas";
 import { cn } from "@/lib/utils";
 
 import {
@@ -26,7 +26,7 @@ import type { DeckApi } from "../use-deck";
 import { CardDetails } from "./card-details";
 import { DeckPoster } from "./deck-poster";
 import { RatingStars } from "./rating-stars";
-import { STATUS_META, StatusPicker } from "./status-picker";
+import { STATUS_META } from "./status-picker";
 import { ToggleAction } from "./toggle-action";
 
 const NEXT_HINT_KEY = "anikansou.deck.web-next-hint";
@@ -100,10 +100,20 @@ export function WebDeck({
       if (key === "l") return void actions.toggleLike();
       if (key === "a") return void actions.toggleWatchlist();
       if (card.isUpcoming) return;
+      if (key === "w") return void actions.toggleWatched();
       const rating = ratingForKey(key);
-      if (rating !== null) return void actions.rate(rating);
-      if (key === "Backspace") return void actions.rate(null);
-      if (key === "w") return void actions.status("watched");
+      if (rating !== null) {
+        // 0015: a rating needs Watched.
+        if (!controlsFor(card).canRate) {
+          deck.announce("Mark it watched first (W).");
+          return;
+        }
+        return void actions.rate(rating);
+      }
+      // Clearing always works, even an older rating on a title that isn't
+      // Watched (spec 06 edge case).
+      if (key === "Backspace" && card.state.rating !== null)
+        return void actions.rate(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -111,6 +121,14 @@ export function WebDeck({
 
   if (!card) return null;
   const headingId = `deck-title-${card.animeId}`;
+  const hintId = `deck-rate-hint-${card.animeId}`;
+  const controls = controlsFor(card);
+  // A status set in the library (Watching, On hold, Dropped) shows read-only;
+  // turning Watched on replaces it (0015).
+  const otherStatus =
+    card.state.status && card.state.status !== "watched"
+      ? card.state.status
+      : null;
 
   return (
     <section
@@ -181,34 +199,50 @@ export function WebDeck({
         <CardDetails card={card} headingId={headingId} />
 
         <div className="flex flex-col gap-8 rounded-lg bg-surface-1 p-6 md:p-8">
-          {!controlsFor(card).rating ? (
+          {!controls.rating ? (
             <p className="text-body text-muted-foreground">
               Not aired yet. You can like it or add it to your watchlist.
             </p>
           ) : (
-            <>
-              <div className="flex flex-col gap-3">
-                <h3 className="text-small font-semibold text-muted-foreground">
-                  Rating
-                </h3>
-                <RatingStars
-                  value={card.state.rating}
-                  onChange={(rating) => void actions.rate(rating)}
-                  clearable
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <h3 className="text-small font-semibold text-muted-foreground">
-                  Status
-                </h3>
-                <StatusPicker
-                  value={card.state.status}
-                  onChange={(status) => void actions.status(status)}
-                />
-              </div>
-            </>
+            <div className="flex flex-col gap-3">
+              <h3 className="text-small font-semibold text-muted-foreground">
+                Rating
+              </h3>
+              <RatingStars
+                value={card.state.rating}
+                onChange={(rating) => void actions.rate(rating)}
+                clearable
+                disabled={!controls.canRate}
+                describedBy={controls.canRate ? undefined : hintId}
+              />
+              {controls.canRate ? null : (
+                <p id={hintId} className="text-small text-muted-foreground">
+                  Mark it watched to rate it.
+                </p>
+              )}
+            </div>
           )}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {controls.watched ? (
+              <ToggleAction
+                kind="watched"
+                on={card.state.status === "watched"}
+                onToggle={() => void actions.toggleWatched()}
+                keyHint="W"
+              />
+            ) : null}
+            {otherStatus ? (
+              <span
+                className={cn(
+                  "inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-small font-semibold",
+                  STATUS_META[otherStatus].text,
+                  STATUS_META[otherStatus].tint,
+                )}
+              >
+                {STATUS_META[otherStatus].icon}
+                {STATUS_META[otherStatus].label}
+              </span>
+            ) : null}
             <ToggleAction
               kind="like"
               on={card.state.liked}
@@ -239,7 +273,7 @@ export function WebDeck({
           ) : null}
         </div>
         <p className="hidden text-caption text-text-subtle md:block">
-          Keys: ← → move · 1–9 and 0 rate · W watched · L like · A watchlist ·
+          Keys: ← → move · W watched · 1–9 and 0 rate · L like · A watchlist ·
           Ctrl+Z undo
         </p>
       </div>
@@ -256,17 +290,10 @@ function useActions(
   return {
     rate: async (rating: number | null) => {
       if (!card || card.isUpcoming) return;
-      const optimistic = {
-        ...card.state,
-        rating,
-        status:
-          rating !== null && card.state.status === null
-            ? ("watched" as const)
-            : card.state.status,
-      };
+      if (rating !== null && !controlsFor(card).canRate) return;
       const saved = await deck.save(
         card,
-        optimistic,
+        { ...card.state, rating },
         () => setRating(card.animeId, rating),
         {
           label:
@@ -281,14 +308,23 @@ function useActions(
       );
       if (saved) onFirstAction();
     },
-    status: async (status: WatchStatus | null) => {
+    /** Watched on, or off, which also removes the rating (0015). */
+    toggleWatched: async () => {
       if (!card || card.isUpcoming) return;
-      const label =
-        status === null ? "Status cleared" : STATUS_META[status].label;
+      const on = card.state.status !== "watched";
+      const label = on
+        ? "Marked watched"
+        : card.state.rating !== null
+          ? "Watched and rating removed"
+          : "Watched removed";
       const saved = await deck.save(
         card,
-        { ...card.state, status },
-        () => setStatus(card.animeId, status),
+        {
+          ...card.state,
+          status: on ? "watched" : null,
+          rating: on ? card.state.rating : null,
+        },
+        () => setStatus(card.animeId, on ? "watched" : null),
         { label, announce: `${label}: ${card.title}.` },
       );
       if (saved) onFirstAction();

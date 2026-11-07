@@ -128,6 +128,13 @@ export function useDeck({
   const passed = useRef(new Map<number, number>());
   // Anime acted on this session (web: they aren't "passed" when moving on).
   const touched = useRef(new Set<number>());
+  // Saves still in flight per card, and the card's last state the server
+  // confirmed. Saves run in order, so one finishing must not overwrite the
+  // optimistic state of a newer one still in flight (e.g. Watched, then a
+  // rating straight after: 0015); a failure goes back to what the server
+  // last confirmed, not to a state that included other unsaved changes.
+  const pendingSaves = useRef(new Map<number, number>());
+  const confirmed = useRef(new Map<number, TrackingState>());
   const toastId = useRef(0);
   // Retries call the latest save/skip without the callbacks naming themselves.
   const saveRef = useRef<SaveFn | null>(null);
@@ -261,7 +268,16 @@ export function useDeck({
         setAnnouncement(OFFLINE);
         return false;
       }
-      const before = card.state;
+      const id = card.animeId;
+      const inFlight = pendingSaves.current.get(id) ?? 0;
+      if (inFlight === 0) confirmed.current.set(id, card.state);
+      pendingSaves.current.set(id, inFlight + 1);
+      const settle = () => {
+        const left = (pendingSaves.current.get(id) ?? 1) - 1;
+        if (left === 0) pendingSaves.current.delete(id);
+        else pendingSaves.current.set(id, left);
+        return left;
+      };
       setCardError(null);
       touched.current.add(card.animeId);
       updateState(card.animeId, optimistic);
@@ -278,6 +294,7 @@ export function useDeck({
           return call();
         }),
       );
+      const left = settle();
       if (!result.ok) {
         if (result.gone) {
           // Retired by an import while it was in the queue (spec 05 edge case).
@@ -286,7 +303,7 @@ export function useDeck({
           setAnnouncement(GONE);
           return true;
         }
-        updateState(card.animeId, before);
+        updateState(id, confirmed.current.get(id) ?? card.state);
         setCardError({
           animeId: card.animeId,
           message: result.error,
@@ -296,7 +313,10 @@ export function useDeck({
         return false;
       }
 
-      updateState(card.animeId, result.state);
+      // Count ratings against what the server had before this save.
+      const before = confirmed.current.get(id) ?? card.state;
+      confirmed.current.set(id, result.state);
+      if (left === 0) updateState(id, result.state);
       setUndo(
         pushUndo(undoRef.current, {
           animeId: card.animeId,
