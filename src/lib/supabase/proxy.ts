@@ -76,16 +76,17 @@ async function hasUsername(supabase: Supabase, userId: string) {
   return Boolean(data?.username);
 }
 
-/** Pages that need an account and a username: settings and the deck. */
+/** Pages that need an account and a username: settings, the deck, the Library. */
 function isSignedInArea(pathname: string): boolean {
-  return ["/settings", "/rate"].some(
+  return ["/settings", "/rate", "/library"].some(
     (area) => pathname === area || pathname.startsWith(`${area}/`),
   );
 }
 
 /**
  * The redirect table in specs/02-accounts.md ("Proxy rules"), with /rate added
- * and the default destination changed to the deck by spec 05.
+ * and the default destination changed to the deck by spec 05, and /library
+ * added by spec 07.
  */
 async function redirectTarget(
   request: NextRequest,

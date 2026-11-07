@@ -38,7 +38,9 @@ const SEASON_LABELS: Record<string, string> = {
 };
 
 /** "TV · 2023 · 28 eps" or "Movie · 2016 · 1 h 46 min" (decision 0006). */
-export function metaLine(card: DeckCard): string {
+export function metaLine(
+  card: Pick<DeckCard, "format" | "year" | "episodes" | "durationMinutes">,
+): string {
   const length =
     card.format === "Movie" && card.durationMinutes
       ? formatMinutes(card.durationMinutes)

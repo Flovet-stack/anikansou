@@ -2,12 +2,9 @@
 
 import { useEffect } from "react";
 
-import { Button } from "@/components/ui/button";
-import { HugeiconsUndoIcon } from "@/components/ui/hugeicons-undo";
 import { cn } from "@/lib/utils";
 
 import { milestoneProgress, nextMilestone } from "../logic";
-import type { Toast } from "../use-deck";
 
 /**
  * Session counter and a ring toward the next milestone (decision 0009).
@@ -63,41 +60,6 @@ export function DeckProgress({
             : `${ratedTotal} of ${next} ratings`}
         </p>
       </div>
-    </div>
-  );
-}
-
-/** Short confirmation with Undo (decision 0007 §3). Dismisses after 5 s. */
-export function DeckToast({
-  toast,
-  onUndo,
-  onDismiss,
-}: {
-  toast: Toast | null;
-  onUndo: () => void;
-  onDismiss: () => void;
-}) {
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(onDismiss, 5000);
-    return () => window.clearTimeout(timer);
-  }, [toast, onDismiss]);
-
-  if (!toast) return null;
-  return (
-    <div className="fixed inset-x-4 bottom-[calc(var(--spacing-tabbar)+var(--spacing)*4+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-lg bg-surface-3 py-2 pr-2 pl-5 text-small shadow-float md:bottom-8 md:left-[calc(var(--spacing-rail)+var(--spacing)*8)] md:mx-0 lg:left-[calc(var(--spacing-sidebar)+var(--spacing)*8)]">
-      <span>{toast.message}</span>
-      {toast.undo ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onUndo}
-          className="text-accent-text"
-        >
-          <HugeiconsUndoIcon size={18} aria-hidden />
-          Undo
-        </Button>
-      ) : null}
     </div>
   );
 }

@@ -1049,6 +1049,37 @@ export type Database = {
       }
       deck_skip: { Args: { p_anime_id: number; p_via: string }; Returns: Json }
       deck_undo: { Args: { p_event_id: number }; Returns: Json }
+      library_counts: {
+        Args: never
+        Returns: {
+          count: number
+          shelf: string
+        }[]
+      }
+      library_page: {
+        Args: {
+          p_cursor?: Json
+          p_page_size?: number
+          p_shelf: string
+          p_sort?: string
+        }
+        Returns: {
+          anime_id: number
+          cursor: Json
+          duration_seconds: number
+          episodes: number
+          is_upcoming: boolean
+          liked: boolean
+          native_title: string
+          rating: number
+          status: Database["public"]["Enums"]["watch_status"]
+          title: string
+          type: Database["catalog"]["Enums"]["anime_type"]
+          watchlisted: boolean
+          year: number
+        }[]
+      }
+      library_remove: { Args: { p_anime_id: number }; Returns: Json }
       set_like: {
         Args: { p_anime_id: number; p_liked: boolean }
         Returns: Json

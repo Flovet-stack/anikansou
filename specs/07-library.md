@@ -1,6 +1,6 @@
 # 07: Library
 
-Status: Ready (decision 0016 approved; build after spec 06 is merged) · Written: 2026-11-07
+Status: Done (PR #16; decision 0016 approved) · Written: 2026-11-07
 
 Brief: the "record what they've watched" job, and Must have #3 (statuses), #4 (watchlist), #5 (rating) and #6 (like) as a page you can browse and edit.
 

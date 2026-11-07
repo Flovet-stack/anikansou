@@ -25,9 +25,9 @@ import type { DeckCard } from "../types";
 import type { DeckApi } from "../use-deck";
 import { CardDetails } from "./card-details";
 import { DeckPoster } from "./deck-poster";
-import { RatingStars } from "./rating-stars";
-import { STATUS_META } from "./status-picker";
-import { ToggleAction } from "./toggle-action";
+import { RatingStars } from "@/features/tracking/components/rating-stars";
+import { STATUS_META } from "@/features/tracking/components/status-picker";
+import { ToggleAction } from "@/features/tracking/components/toggle-action";
 
 const NEXT_HINT_KEY = "anikansou.deck.web-next-hint";
 
