@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 import { PosterArt } from "@/components/poster/poster-art";
 import { HugeiconsHeartIcon } from "@/components/ui/hugeicons-heart";
@@ -21,22 +21,47 @@ import { MoreIcon } from "./more-icon";
  * shows on hover or focus; on touch only the ⋯ button shows. The card itself
  * (its title button, stretched over the card) opens the edit sheet, since
  * there are no title pages yet (0016).
+ *
+ * Search (spec 09) reuses it with its own context line, without actions for
+ * signed-out visitors, and with adult posters blurred until revealed (0010).
  */
 export const TitleCard = forwardRef<
   HTMLButtonElement,
   {
-    card: LibraryCard;
+    card: LibraryCard & { isAdult?: boolean };
     /** Off the current shelf after an edit: dimmed until its toast closes. */
-    leaving: boolean;
+    leaving?: boolean;
+    /**
+     * The 0006 context line. Defaults to your rating in stars (Library);
+     * search passes "Also known as …".
+     */
+    context?: ReactNode;
+    /** False for signed-out visitors: no quick actions, and the card is a link-like button. */
+    actions?: boolean;
+    /** An adult poster stays blurred until revealed (0010). */
+    revealed?: boolean;
+    onReveal?: () => void;
     onOpen: () => void;
     onToggleWatched: () => void;
     onToggleLike: () => void;
     onToggleWatchlist: () => void;
   }
 >(function TitleCard(
-  { card, leaving, onOpen, onToggleWatched, onToggleLike, onToggleWatchlist },
+  {
+    card,
+    leaving = false,
+    context,
+    actions = true,
+    revealed = false,
+    onReveal,
+    onOpen,
+    onToggleWatched,
+    onToggleLike,
+    onToggleWatchlist,
+  },
   ref,
 ) {
+  const blurred = card.isAdult === true && !revealed;
   const { status, rating, liked, watchlisted } = card.state;
   const meta = metaLine(card);
   return (
@@ -47,14 +72,35 @@ export const TitleCard = forwardRef<
       )}
     >
       <div className="relative">
-        <PosterArt
-          animeId={card.animeId}
-          romajiTitle={card.title}
-          nativeTitle={card.nativeTitle}
-          format={card.format}
-          year={card.year}
-          urls={card.posterUrls}
-        />
+        <div
+          className={cn(
+            "overflow-hidden rounded-md transition-[filter] duration-(--duration-base)",
+            blurred && "blur-xl saturate-50",
+          )}
+        >
+          <PosterArt
+            animeId={card.animeId}
+            romajiTitle={card.title}
+            nativeTitle={card.nativeTitle}
+            format={card.format}
+            year={card.year}
+            urls={card.posterUrls}
+          />
+        </div>
+        {card.isAdult ? (
+          <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-0.5 text-caption font-semibold text-white">
+            18+
+          </span>
+        ) : null}
+        {blurred && onReveal ? (
+          <button
+            type="button"
+            onClick={onReveal}
+            className="absolute inset-x-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/70 px-3 py-2 text-small font-semibold text-white"
+          >
+            Show poster (18+)
+          </button>
+        ) : null}
         {/* Your state, on the poster (0006): one status badge, a heart. */}
         {status ? (
           <span
@@ -78,39 +124,43 @@ export const TitleCard = forwardRef<
         ) : null}
 
         {/* Quick actions (0006): hover/focus bar on pointer devices. */}
-        <div
-          role="group"
-          aria-label={`Quick actions for ${card.title}`}
-          className="absolute inset-x-2 bottom-2 z-10 hidden justify-between gap-1 rounded-full bg-black/70 p-1 opacity-0 backdrop-blur-sm transition-opacity duration-(--duration-fast) group-focus-within/card:opacity-100 group-hover/card:opacity-100 pointer-fine:flex"
-        >
-          <ToggleAction
-            kind="watched"
-            on={status === "watched"}
-            onToggle={onToggleWatched}
-            disabled={card.isUpcoming}
-            compact
-            small
-          />
-          <ToggleAction
-            kind="like"
-            on={liked}
-            onToggle={onToggleLike}
-            compact
-            small
-          />
-          <ToggleAction
-            kind="watchlist"
-            on={watchlisted}
-            onToggle={onToggleWatchlist}
-            compact
-            small
-          />
-          <MoreButton title={card.title} onClick={onOpen} />
-        </div>
-        {/* Touch: the ⋯ button only, 44 × 44 (0006). */}
-        <div className="absolute right-1 bottom-1 z-10 pointer-fine:hidden">
-          <MoreButton title={card.title} onClick={onOpen} touch />
-        </div>
+        {actions ? (
+          <>
+            <div
+              role="group"
+              aria-label={`Quick actions for ${card.title}`}
+              className="absolute inset-x-2 bottom-2 z-10 hidden justify-between gap-1 rounded-full bg-black/70 p-1 opacity-0 backdrop-blur-sm transition-opacity duration-(--duration-fast) group-focus-within/card:opacity-100 group-hover/card:opacity-100 pointer-fine:flex"
+            >
+              <ToggleAction
+                kind="watched"
+                on={status === "watched"}
+                onToggle={onToggleWatched}
+                disabled={card.isUpcoming}
+                compact
+                small
+              />
+              <ToggleAction
+                kind="like"
+                on={liked}
+                onToggle={onToggleLike}
+                compact
+                small
+              />
+              <ToggleAction
+                kind="watchlist"
+                on={watchlisted}
+                onToggle={onToggleWatchlist}
+                compact
+                small
+              />
+              <MoreButton title={card.title} onClick={onOpen} />
+            </div>
+            {/* Touch: the ⋯ button only, 44 × 44 (0006). */}
+            <div className="absolute right-1 bottom-1 z-10 pointer-fine:hidden">
+              <MoreButton title={card.title} onClick={onOpen} touch />
+            </div>
+          </>
+        ) : null}
       </div>
 
       <button
@@ -118,7 +168,7 @@ export const TitleCard = forwardRef<
         type="button"
         onClick={onOpen}
         aria-label={cardLabel(card)}
-        aria-haspopup="dialog"
+        aria-haspopup={actions ? "dialog" : undefined}
         data-card-id={card.animeId}
         className="text-left font-display text-base leading-snug font-bold after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-kohaku min-[600px]:text-title-s"
       >
@@ -129,7 +179,13 @@ export const TitleCard = forwardRef<
           {meta}
         </p>
       ) : null}
-      {rating ? <StarsDisplay rating={rating} /> : null}
+      {context === undefined ? (
+        rating ? (
+          <StarsDisplay rating={rating} />
+        ) : null
+      ) : (
+        context
+      )}
     </div>
   );
 });

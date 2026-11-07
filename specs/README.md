@@ -27,16 +27,17 @@ Every spec starts with a status line under its title, for example `Status: Done 
 
 Update the status in the same PR that changes it: the PR that starts the work sets `In progress`, the PR that finishes it sets `Done`.
 
-| Spec                                                 | Status  |
-| ---------------------------------------------------- | ------- |
-| [01: Catalog import](01-catalog-import.md)           | Done    |
-| [02: Accounts](02-accounts.md)                       | Done    |
-| [03: Internationalization setup](03-i18n-setup.md)   | Blocked |
-| [04: UI refresh](04-ui-refresh.md)                   | Done    |
-| [05: Swipe deck](05-swipe-deck.md)                   | Done    |
-| [06: Deck and icon fixes](06-deck-and-icon-fixes.md) | Done    |
-| [07: Library](07-library.md)                         | Done    |
-| [08: AniList posters](08-anilist-posters.md)         | Ready   |
+| Spec                                                 | Status      |
+| ---------------------------------------------------- | ----------- |
+| [01: Catalog import](01-catalog-import.md)           | Done        |
+| [02: Accounts](02-accounts.md)                       | Done        |
+| [03: Internationalization setup](03-i18n-setup.md)   | Blocked     |
+| [04: UI refresh](04-ui-refresh.md)                   | Done        |
+| [05: Swipe deck](05-swipe-deck.md)                   | Done        |
+| [06: Deck and icon fixes](06-deck-and-icon-fixes.md) | Done        |
+| [07: Library](07-library.md)                         | Done        |
+| [08: AniList posters](08-anilist-posters.md)         | Ready       |
+| [09: Title search](09-title-search.md)               | In progress |
 
 ## Suggested sections
 

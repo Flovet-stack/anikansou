@@ -109,6 +109,7 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
 
+- 2026-11-07: Title search on Discover (`/discover`) across every title and synonym, in any script; filters come later (0018).
 - 2026-11-07: AniList cover images, looked up only for titles on screen and stored as links; written permission not yet obtained (0017).
 - 2026-11-07: Library at `/library` with status, watchlist and liked shelves (0016).
 - 2026-11-07: The deck offers Watched only, and a rating needs Watched (0015).

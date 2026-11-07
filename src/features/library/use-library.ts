@@ -23,7 +23,7 @@ const OFFLINE =
 const GONE = "That anime is no longer in the catalog, so it was removed.";
 
 /** A server call that never throws: a network failure becomes an error. */
-async function safely(
+export async function safely(
   call: () => Promise<TrackingResult>,
 ): Promise<TrackingResult> {
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
