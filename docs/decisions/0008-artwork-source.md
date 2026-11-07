@@ -1,6 +1,6 @@
 # 0008: Poster sources: in-house, TMDB, AniList, then generated
 
-- **Status:** Approved
+- **Status:** Approved; items 5 and 6 (no external calls, AniList off) are superseded by [0017](0017-anilist-posters-on-view.md)
 - **Proposed:** 2026-11-06 by the product team (roles: Product, Tech Lead, Backend, Database, Frontend)
 - **Approved:** 2026-11-06 by Flovet ("Let's implement it for now in this order")
 - **Specs:** specs/03-poster-sources.md
