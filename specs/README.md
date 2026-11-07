@@ -35,7 +35,7 @@ Update the status in the same PR that changes it: the PR that starts the work se
 | [04: UI refresh](04-ui-refresh.md)                   | Done    |
 | [05: Swipe deck](05-swipe-deck.md)                   | Done    |
 | [06: Deck and icon fixes](06-deck-and-icon-fixes.md) | Done    |
-| [07: Library](07-library.md)                         | Ready   |
+| [07: Library](07-library.md)                         | Done    |
 | [08: AniList posters](08-anilist-posters.md)         | Ready   |
 
 ## Suggested sections

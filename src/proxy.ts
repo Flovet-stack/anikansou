@@ -9,5 +9,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // An allowlist of signed-in areas. Public pages stay out so crawler traffic
   // never runs this; they get per-user state from the browser client instead.
-  matcher: ["/auth/:path*", "/settings/:path*", "/rate/:path*"],
+  matcher: [
+    "/auth/:path*",
+    "/settings/:path*",
+    "/rate/:path*",
+    "/library/:path*",
+  ],
 };

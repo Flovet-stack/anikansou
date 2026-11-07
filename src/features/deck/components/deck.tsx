@@ -2,17 +2,13 @@
 
 import { useCallback, useState, useSyncExternalStore } from "react";
 
+import { ActionToast } from "@/components/feedback/action-toast";
 import { Button } from "@/components/ui/button";
 
 import { type InputModel, inputModelFor } from "../logic";
 import type { DeckCard } from "../types";
 import { useDeck } from "../use-deck";
-import {
-  DeckEmpty,
-  DeckProgress,
-  DeckToast,
-  MilestoneBurst,
-} from "./deck-chrome";
+import { DeckEmpty, DeckProgress, MilestoneBurst } from "./deck-chrome";
 import { DeckSkeleton } from "./deck-skeleton";
 import { TouchDeck } from "./touch-deck";
 import { WebDeck } from "./web-deck";
@@ -125,9 +121,18 @@ export function Deck({
       <p aria-live="polite" className="sr-only">
         {deck.announcement}
       </p>
-      <DeckToast
-        toast={deck.toast}
-        onUndo={undo}
+      <ActionToast
+        toast={
+          deck.toast
+            ? {
+                id: deck.toast.id,
+                message: deck.toast.message,
+                action: deck.toast.undo
+                  ? { kind: "undo", onClick: undo }
+                  : undefined,
+              }
+            : null
+        }
         onDismiss={deck.dismissToast}
       />
       {deck.milestone ? (

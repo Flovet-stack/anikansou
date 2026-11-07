@@ -33,8 +33,8 @@ import {
 import type { DeckApi } from "../use-deck";
 import { CardDetails } from "./card-details";
 import { DeckPoster } from "./deck-poster";
-import { RatingStars } from "./rating-stars";
-import { ToggleAction } from "./toggle-action";
+import { RatingStars } from "@/features/tracking/components/rating-stars";
+import { ToggleAction } from "@/features/tracking/components/toggle-action";
 
 const HINT_KEY = "anikansou.deck.touch-hint";
 

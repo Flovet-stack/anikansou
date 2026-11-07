@@ -17,6 +17,14 @@
 }
 
 /*
+ * Input type (decision 0006): pointer devices get the card's hover/focus
+ * action bar and a centred dialog; touch screens get the ⋯ button and a
+ * bottom sheet.
+ */
+@custom-variant pointer-fine (@media (hover: hover) and (pointer: fine));
+@custom-variant pointer-coarse (@media not ((hover: hover) and (pointer: fine)));
+
+/*
  * Design tokens. Values come from the approved decisions:
  * 0001 (colour, type, spacing, radius, motion), 0005 (status and action
  * colours) and 0012 (dark theme only for now, so there are no light values).

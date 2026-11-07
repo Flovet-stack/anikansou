@@ -43,7 +43,8 @@ type Rpc =
       };
     }
   | { fn: "deck_skip"; args: { p_anime_id: number; p_via: string } }
-  | { fn: "deck_undo"; args: { p_event_id: number } };
+  | { fn: "deck_undo"; args: { p_event_id: number } }
+  | { fn: "library_remove"; args: { p_anime_id: number } };
 
 async function call(rpc: Rpc): Promise<TrackingResult> {
   const user = await getCurrentUser();
@@ -147,6 +148,14 @@ export async function deckSkip(
   if (!animeIdSchema.safeParse(animeId).success) return invalid();
   if (!skipViaSchema.safeParse(via).success) return invalid();
   return call({ fn: "deck_skip", args: { p_anime_id: animeId, p_via: via } });
+}
+
+/** "Remove from library": everything for this anime, as one undoable event. */
+export async function removeFromLibrary(
+  animeId: number,
+): Promise<TrackingResult> {
+  if (!animeIdSchema.safeParse(animeId).success) return invalid();
+  return call({ fn: "library_remove", args: { p_anime_id: animeId } });
 }
 
 export async function deckUndo(eventId: number): Promise<TrackingResult> {

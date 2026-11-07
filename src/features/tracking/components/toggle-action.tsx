@@ -44,6 +44,7 @@ export function ToggleAction({
   on,
   onToggle,
   compact = false,
+  small = false,
   disabled = false,
   keyHint,
 }: {
@@ -51,6 +52,8 @@ export function ToggleAction({
   on: boolean;
   onToggle: () => void;
   compact?: boolean;
+  /** With `compact`: a 40 px button, for the title card's action bar. */
+  small?: boolean;
   disabled?: boolean;
   keyHint?: string;
 }) {
@@ -67,13 +70,18 @@ export function ToggleAction({
       onClick={onToggle}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[background-color,color,transform] duration-(--duration-hover-out) ease-in-out active:scale-[0.97] disabled:opacity-50 hover-fine:duration-(--duration-fast)",
-        compact ? "size-12" : "min-h-11 px-4 text-small",
+        compact ? (small ? "size-10" : "size-12") : "min-h-11 px-4 text-small",
         on
-          ? cn(meta.text, meta.tint, "[&_path]:fill-current")
+          ? cn(
+              meta.text,
+              meta.tint,
+              // Heart and bookmark fill; a filled circle-check would hide its tick.
+              kind !== "watched" && "[&_path]:fill-current",
+            )
           : cn("bg-surface-2 text-muted-foreground", meta.hover),
       )}
     >
-      <Icon size={compact ? 24 : 20} aria-hidden />
+      <Icon size={compact && !small ? 24 : 20} aria-hidden />
       {compact ? null : label}
     </button>
   );
