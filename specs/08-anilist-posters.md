@@ -24,7 +24,7 @@ Implements [0017](../docs/decisions/0017-anilist-posters-on-view.md), which repl
 ### Server lookup
 
 5. `getPosterSources(ids)` (server-only) returns stored candidates as today, and for ids with no AniList row and no recent "no cover" mark it:
-   - finds their AniList ids in `catalog.external_ids` (site `anilist`),
+   - finds their AniList ids in `catalog.external_ids` (site `anilist.co`, id `/anime/<number>`, as the catalog import stores links),
    - sends **one** GraphQL request to `https://graphql.anilist.co` for up to 50 ids (`Page(perPage: 50) { media(id_in: [...], type: ANIME) { id coverImage { extraLarge large } } }`),
    - records the results with `record_anilist_covers` and includes them in what it returns.
 6. Time limit 1.5 s; on timeout, error or a non-2xx response the page renders with what it has (generated posters for the rest). On a 429, no lookups at all for 60 s (per server instance), honouring `Retry-After` when present.

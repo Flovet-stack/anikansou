@@ -12,6 +12,14 @@ import { type PosterCandidate, resolvePosterUrls } from "./resolve";
 /** Most anime ids one call may ask for (one grid page is far fewer). */
 export const MAX_POSTER_IDS = 100;
 
+/**
+ * How the catalog import stores AniList links (`normalizeUrl` in
+ * src/sync/normalize.ts): the host as the site, the path as the id, e.g.
+ * `anilist.co` + `/anime/154587`.
+ */
+const ANILIST_SITE = "anilist.co";
+const ANILIST_PATH = /^\/anime\/([1-9][0-9]{0,9})$/;
+
 /** How long a "looked up, no cover" mark keeps a title from being asked again. */
 export const MISS_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
@@ -138,7 +146,7 @@ async function lookUpCovers(
         .schema("catalog")
         .from("external_ids")
         .select("anime_id, external_id")
-        .eq("site", "anilist")
+        .eq("site", ANILIST_SITE)
         .in("anime_id", animeIds),
     ]);
     if (misses.error || mappings.error) return found;
@@ -148,7 +156,7 @@ async function lookUpCovers(
     const targets = new Map<number, number>();
     const mapped = new Set<number>();
     for (const row of mappings.data) {
-      const anilistId = Number(row.external_id);
+      const anilistId = Number(ANILIST_PATH.exec(row.external_id)?.[1]);
       if (
         recentlyMissed.has(row.anime_id) ||
         mapped.has(row.anime_id) ||

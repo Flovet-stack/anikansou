@@ -354,24 +354,18 @@ test("shows AniList covers without the browser ever calling AniList's API", asyn
     '[data-testid="poster-image"][src^="https://s4.anilist.co/"]',
   );
   // A fresh user's deck opens on well-known titles, which AniList has covers
-  // for. If AniList is unreachable from here, the generated poster shows.
-  const shown = await covers
-    .first()
-    .waitFor({ state: "attached", timeout: 15_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (shown) {
+  // for. Where AniList can't be reached from the test machine, run with
+  // E2E_ANILIST_UNREACHABLE=1 to check the generated poster instead: without
+  // it, a missing cover fails the test rather than passing as a fallback.
+  if (process.env.E2E_ANILIST_UNREACHABLE === "1") {
+    await expect(page.getByTestId("poster-fallback").first()).toBeAttached();
+  } else {
+    await expect(covers.first()).toBeAttached({ timeout: 20_000 });
     await expect
       .poll(() =>
         covers.first().evaluate((img: HTMLImageElement) => img.naturalWidth),
       )
       .toBeGreaterThan(0);
-  } else {
-    test.info().annotations.push({
-      type: "note",
-      description: "No AniList cover loaded: checked the fallback instead.",
-    });
-    await expect(page.getByTestId("poster-fallback").first()).toBeAttached();
   }
 
   // Covers load from AniList's image host only; the lookup stays on the server.

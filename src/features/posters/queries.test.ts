@@ -119,12 +119,31 @@ beforeEach(() => {
     },
     external_ids: (calls) => {
       const ids = calls.find((c) => c.method === "in")!.args[1] as number[];
+      // The import stores links as host + path (src/sync/normalize.ts).
+      const site = calls.find((c) => c.method === "eq" && c.args[0] === "site");
       return {
-        data: mappings.filter((m) => ids.includes(m.anime_id)),
+        data:
+          site?.args[1] === "anilist.co"
+            ? mappings.filter((m) => ids.includes(m.anime_id))
+            : [],
         error: null,
       };
     },
   };
+});
+
+describe("getPosterSources: AniList ids", () => {
+  it("reads them from the import's anilist.co paths and skips anything else", async () => {
+    mappings = [
+      { anime_id: 1, external_id: "/anime/154587" },
+      { anime_id: 2, external_id: "/manga/30002" },
+      { anime_id: 3, external_id: "/anime/abc" },
+      { anime_id: 4, external_id: "154587" },
+    ];
+    answer([]);
+    await getPosterSources([1, 2, 3, 4], { lookUp: true });
+    expect(requestedIds()).toEqual([154587]);
+  });
 });
 
 afterEach(() => {
@@ -192,7 +211,7 @@ describe("getPosterSources: stored posters", () => {
   });
 
   it("never calls AniList unless the page asks for a lookup (search, collage)", async () => {
-    mappings = [{ anime_id: 1, external_id: "101" }];
+    mappings = [{ anime_id: 1, external_id: "/anime/101" }];
     await getPosterSources([1]);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(queries.map((q) => q.table)).toEqual(["poster_candidates"]);
@@ -211,9 +230,9 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
       },
     ];
     mappings = [
-      { anime_id: 1, external_id: "101" },
-      { anime_id: 2, external_id: "102" },
-      { anime_id: 3, external_id: "103" },
+      { anime_id: 1, external_id: "/anime/101" },
+      { anime_id: 2, external_id: "/anime/102" },
+      { anime_id: 3, external_id: "/anime/103" },
     ];
     answer([
       { id: 101, url: cover(101) },
@@ -235,7 +254,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
   });
 
   it("records the covers only after the response", async () => {
-    mappings = [{ anime_id: 2, external_id: "102" }];
+    mappings = [{ anime_id: 2, external_id: "/anime/102" }];
     answer([{ id: 102, url: cover(102) }]);
 
     await getPosterSources([2], { lookUp: true });
@@ -248,7 +267,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
   });
 
   it("skips ids without an AniList mapping, and sends nothing when none have one", async () => {
-    mappings = [{ anime_id: 2, external_id: "102" }];
+    mappings = [{ anime_id: 2, external_id: "/anime/102" }];
     answer([{ id: 102, url: cover(102) }]);
     await getPosterSources([1, 2], { lookUp: true });
     expect(requestedIds()).toEqual([102]);
@@ -270,8 +289,8 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
       },
     ];
     mappings = [
-      { anime_id: 1, external_id: "101" },
-      { anime_id: 2, external_id: "102" },
+      { anime_id: 1, external_id: "/anime/101" },
+      { anime_id: 2, external_id: "/anime/102" },
     ];
     answer([{ id: 102, url: cover(102) }]);
 
@@ -295,9 +314,9 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
 
   it("remembers titles AniList has no cover for, and doesn't ask about them again", async () => {
     mappings = [
-      { anime_id: 1, external_id: "101" },
-      { anime_id: 2, external_id: "102" },
-      { anime_id: 3, external_id: "103" },
+      { anime_id: 1, external_id: "/anime/101" },
+      { anime_id: 2, external_id: "/anime/102" },
+      { anime_id: 3, external_id: "/anime/103" },
     ];
     // AniList returns fewer media than asked, and one without a cover.
     answer([
@@ -334,7 +353,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
     const ids = Array.from({ length: 60 }, (_, i) => i + 1);
     mappings = ids.map((id) => ({
       anime_id: id,
-      external_id: String(1000 + id),
+      external_id: `/anime/${1000 + id}`,
     }));
     answer([]);
     await getPosterSources(ids, { lookUp: true });
@@ -343,7 +362,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
 
   it("makes no lookup while the AniList source is switched off", async () => {
     enabled = false;
-    mappings = [{ anime_id: 1, external_id: "101" }];
+    mappings = [{ anime_id: 1, external_id: "/anime/101" }];
     await getPosterSources([1], { lookUp: true });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -374,8 +393,8 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
         },
       ];
       mappings = [
-        { anime_id: 1, external_id: "101" },
-        { anime_id: 2, external_id: "102" },
+        { anime_id: 1, external_id: "/anime/101" },
+        { anime_id: 2, external_id: "/anime/102" },
       ];
       fail();
       expect(await getPosterSources([1, 2], { lookUp: true })).toEqual(
@@ -386,7 +405,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
   );
 
   it(`gives up after ${TIMEOUT_MS} ms and returns the stored posters`, async () => {
-    mappings = [{ anime_id: 1, external_id: "101" }];
+    mappings = [{ anime_id: 1, external_id: "/anime/101" }];
     fetchMock.mockImplementation(
       (_, init) =>
         new Promise((_resolve, reject) => {
@@ -404,7 +423,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
   });
 
   it("pauses every lookup after a 429", async () => {
-    mappings = [{ anime_id: 1, external_id: "101" }];
+    mappings = [{ anime_id: 1, external_id: "/anime/101" }];
     fetchMock.mockResolvedValue(new Response("", { status: 429 }));
     expect(await getPosterSources([1], { lookUp: true })).toEqual(new Map());
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -417,7 +436,7 @@ describe("getPosterSources: AniList lookups (spec 08)", () => {
 
   it("still returns the covers when recording them fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mappings = [{ anime_id: 1, external_id: "101" }];
+    mappings = [{ anime_id: 1, external_id: "/anime/101" }];
     answer([{ id: 101, url: cover(101) }]);
     rpc.mockResolvedValue({ data: null, error: { message: "nope" } });
     expect(await getPosterSources([1], { lookUp: true })).toEqual(
