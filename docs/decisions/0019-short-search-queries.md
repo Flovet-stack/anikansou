@@ -22,14 +22,14 @@ Word similarity gives `no` a perfect score against every title with the particle
 
 ## Research
 
-| Reference                                                         | What they do                                                               | Adopt / adapt / reject | Why                                                  |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------- |
-| Our live catalog (read-only probe above)                          | Short particles and articles match most romaji titles                      | Adopt                  | The cost and the useless results have the same cause |
-| Baymard, autocomplete design (opened for 0018)                    | Early keystrokes complete the start of a term                              | Adapt                  | A short query is usually the start of a title        |
-| PostgreSQL docs, `pg_trgm` and operator classes (opened for 0018) | A btree index with `text_pattern_ops` serves `LIKE 'abc%'` prefix searches | Adopt                  | It is exact, small and fast on 262k rows             |
-| Matching a word anywhere that starts with the query               | `no` still matches every "… no …" title                                    | Reject                 | It fixes nothing for romaji                          |
+| Reference                                                               | What they do                                                               | Adopt / adapt / reject | Why                                                  |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------- |
+| Our live catalog (read-only probe above)                                | Short particles and articles match most romaji titles                      | Adopt                  | The cost and the useless results have the same cause |
+| Baymard, autocomplete design (opened for 0018)                          | Early keystrokes complete the start of a term                              | Adapt                  | A short query is usually the start of a title        |
+| PostgreSQL `text_pattern_ops` (team knowledge; verified by the dry run) | A btree index with `text_pattern_ops` serves `LIKE 'abc%'` prefix searches | Adopt                  | It is exact, small and fast on 262k rows             |
+| Matching a word anywhere that starts with the query                     | `no` still matches every "… no …" title                                    | Reject                 | It fixes nothing for romaji                          |
 
-Sources: https://www.postgresql.org/docs/current/indexes-opclass.html (operator classes, `text_pattern_ops`) and the 0018 sources.
+Sources: the 0018 sources. `text_pattern_ops` is from team knowledge (the PostgreSQL operator-class page wasn't opened). It was verified instead by a dry run of the migration on the live catalog, rolled back: `no` 10 ms, `the` 66 ms, `ga` 13 ms, and every spec 09 ranking query unchanged.
 
 ## Options
 
