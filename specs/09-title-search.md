@@ -1,6 +1,6 @@
 # 09: Title search
 
-Status: Ready (decision 0018 approved; build after spec 07 is merged, since it reuses 07's edit sheet) · Written: 2026-11-07
+Status: In progress (branch claude/title-search) · Written: 2026-11-07
 
 Brief: Must have #11 (advanced search), the "title in any language" part. Filters come later.
 
