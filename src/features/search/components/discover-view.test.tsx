@@ -166,7 +166,8 @@ describe("DiscoverView search", () => {
     load.mockResolvedValue(page([]));
     const field = setup();
     await type(field, "zzzzqqq");
-    expect(screen.getByText("No anime match “zzzzqqq”.")).toBeTruthy();
+    // Shown, and announced once in the live region.
+    expect(screen.getAllByText("No anime match “zzzzqqq”.")).toHaveLength(2);
 
     // The × in the field and the button under the message both clear.
     const clears = screen.getAllByRole("button", { name: "Clear search" });

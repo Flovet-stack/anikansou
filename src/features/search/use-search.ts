@@ -106,7 +106,7 @@ export function useSearch({
     setStatus("ready");
     setAnnouncement(
       page.total === 0
-        ? `No anime match "${query.trim()}".`
+        ? `No anime match “${query.trim()}”.`
         : resultsText(page.total, query),
     );
   }, []);
@@ -162,9 +162,13 @@ export function useSearch({
       setLoadError("Couldn't load more. Check your connection and try again.");
       return;
     }
-    const known = new Set(current.cards.map((c) => c.animeId));
+    // Append to what's on screen now, not the snapshot from before the
+    // await: a save made meanwhile has already updated it.
+    const live = resultsRef.current;
+    if (!live || live.query !== current.query) return;
+    const known = new Set(live.cards.map((c) => c.animeId));
     const fresh = page.cards.filter((c) => !known.has(c.animeId));
-    const next = { ...current, cards: [...current.cards, ...fresh] };
+    const next = { ...live, cards: [...live.cards, ...fresh] };
     resultsRef.current = next;
     setResults(next);
     const first = fresh[0];

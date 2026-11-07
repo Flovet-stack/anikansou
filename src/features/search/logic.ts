@@ -17,13 +17,15 @@ export function normalizeQuery(raw: string): string {
 
 /**
  * Whether a query is worth sending: at least 2 characters that aren't
- * spaces or ASCII punctuation (so "!!" isn't), and at most 100. Mirrors the
+ * spaces, punctuation or symbols (so "!!" and "「」" aren't), and at most 100. Mirrors the
  * database's own check, which strips `[[:space:][:punct:]]`.
  */
 export function isSearchable(raw: string): boolean {
   const query = normalizeQuery(raw);
   if (query.length > MAX_QUERY_CHARS) return false;
-  const meaningful = query.replace(/[\s!-/:-@[-`{-~]/g, "");
+  // Postgres's [[:punct:]] (UTF-8 locale) also drops Unicode punctuation
+  // and symbols such as 「」 and ・, so the same goes here.
+  const meaningful = query.replace(/[\s\p{P}\p{S}]/gu, "");
   return [...meaningful].length >= MIN_QUERY_CHARS;
 }
 

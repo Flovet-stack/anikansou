@@ -33,6 +33,10 @@ describe("isSearchable", () => {
     expect(isSearchable("  a  ")).toBe(false);
     expect(isSearchable("!!")).toBe(false);
     expect(isSearchable("a!")).toBe(false);
+    // Unicode punctuation counts as punctuation, as in the database.
+    expect(isSearchable("「」")).toBe(false);
+    expect(isSearchable("・・")).toBe(false);
+    expect(isSearchable("——")).toBe(false);
     expect(isSearchable("ao")).toBe(true);
     expect(isSearchable("k-on")).toBe(true);
     expect(isSearchable("葬送")).toBe(true);

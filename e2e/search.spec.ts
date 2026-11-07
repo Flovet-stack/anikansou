@@ -90,7 +90,10 @@ test.describe("Discover search (mouse and keyboard)", () => {
     await expect(title).toBeVisible();
     await title.hover();
     await page
-      .getByRole("group", { name: "Quick actions for Cowboy Bebop" })
+      .getByRole("group", {
+        name: "Quick actions for Cowboy Bebop",
+        exact: true,
+      })
       .getByRole("button", { name: /watchlist/i })
       .click();
     await expect(
@@ -117,7 +120,9 @@ test.describe("Discover search (mouse and keyboard)", () => {
     ).toBeVisible();
 
     await field(page).fill("zzzzqqq");
-    await expect(page.getByText("No anime match “zzzzqqq”.")).toBeVisible();
+    await expect(
+      page.getByText("No anime match “zzzzqqq”.").first(),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Clear search" }).last().click();
     await expect(field(page)).toHaveValue("");
     await expect(page).toHaveURL(/\/discover$/);
@@ -159,7 +164,9 @@ test.describe("Discover search on a phone (touch)", () => {
     await expect(
       page.getByRole("group", { name: /^Quick actions/ }).first(),
     ).toBeHidden();
-    await page.getByRole("button", { name: "More for Cowboy Bebop" }).tap();
+    await page
+      .getByRole("button", { name: "More for Cowboy Bebop", exact: true })
+      .tap();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
     await sheet.getByRole("button", { name: /watchlist/i }).tap();
@@ -171,5 +178,52 @@ test.describe("Discover search on a phone (touch)", () => {
     await expect(
       page.getByRole("button", { name: "Cowboy Bebop", exact: true }),
     ).toBeVisible();
+  });
+
+  test("signed out: no ⋯ button, and a tap goes to log in and back", async ({
+    page,
+    context,
+  }) => {
+    const { email, password } = await signUp(page);
+    await context.clearCookies();
+    await page.goto("/discover");
+    await field(page).fill("frieren");
+    await expect(results(page)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^More for / })).toHaveCount(
+      0,
+    );
+    await page
+      .getByRole("button", { name: "Sousou no Frieren", exact: true })
+      .tap();
+    await expect(page).toHaveURL(/\/auth\/login\?next=/);
+    await page.getByLabel("Email").filter({ visible: true }).fill(email);
+    await page.getByLabel("Password").filter({ visible: true }).fill(password);
+    await page.getByRole("button", { name: "Log in" }).tap();
+    await expect(page).toHaveURL(/\/discover\?q=frieren$/);
+    await expect(field(page)).toHaveValue("frieren");
+  });
+
+  test("one character sends nothing; no results; Japanese; reload", async ({
+    page,
+  }) => {
+    await page.goto("/discover");
+    const calls = countServerActions(page);
+    await field(page).fill("f");
+    await page.waitForTimeout(600);
+    expect(calls.n).toBe(0);
+
+    await field(page).fill("zzzzqqq");
+    await expect(
+      page.getByText("No anime match “zzzzqqq”.").first(),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Clear search" }).last().tap();
+    await expect(field(page)).toHaveValue("");
+
+    await field(page).fill("葬送");
+    await expect(
+      page.getByRole("button", { name: "Sousou no Frieren", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(field(page)).toHaveValue("葬送");
   });
 });
