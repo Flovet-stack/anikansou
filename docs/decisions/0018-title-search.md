@@ -1,8 +1,8 @@
 # 0018: Title search on Discover
 
-- **Status:** Proposed
+- **Status:** Approved
 - **Proposed:** 2026-11-07 by the product team (roles: Tech Lead, PM, Database, Product, UX, UI, Copy, Frontend, Backend)
-- **Approved:**
+- **Approved:** 2026-11-07 by Flovet ("Approve 0018")
 - **Specs:** specs/09-title-search.md
 
 ## Context
