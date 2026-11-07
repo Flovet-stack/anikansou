@@ -1080,6 +1080,26 @@ export type Database = {
         }[]
       }
       library_remove: { Args: { p_anime_id: number }; Returns: Json }
+      search_anime: {
+        Args: { p_limit?: number; p_offset?: number; p_query: string }
+        Returns: {
+          anime_id: number
+          duration_seconds: number
+          episodes: number
+          is_adult: boolean
+          is_upcoming: boolean
+          liked: boolean
+          matched_title: string
+          native_title: string
+          rating: number
+          status: Database["public"]["Enums"]["watch_status"]
+          title: string
+          total: number
+          type: Database["catalog"]["Enums"]["anime_type"]
+          watchlisted: boolean
+          year: number
+        }[]
+      }
       set_like: {
         Args: { p_anime_id: number; p_liked: boolean }
         Returns: Json
