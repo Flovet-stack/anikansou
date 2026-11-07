@@ -10,7 +10,7 @@ Anyone, signed in or not, opens **Discover**, types part of an anime's title in 
 
 ## Decisions
 
-Implements [0018](../docs/decisions/0018-title-search.md). Follows [0002](../docs/decisions/0002-app-shell-and-navigation.md) (the Discover nav item ships with this spec), [0003](../docs/decisions/0003-icon-set.md), [0004](../docs/decisions/0004-placeholder-poster-art.md), [0005](../docs/decisions/0005-status-and-action-colours.md), [0006](../docs/decisions/0006-title-card.md) (card, grid and the search context line), [0007](../docs/decisions/0007-interaction-and-disclosure.md), [0008](../docs/decisions/0008-artwork-source.md), [0010](../docs/decisions/0010-deck-content-and-order.md) (adult and unaired titles), [0015](../docs/decisions/0015-deck-watched-only.md) and [0016](../docs/decisions/0016-library.md) (the edit sheet).
+Implements [0018](../docs/decisions/0018-title-search.md), with short queries as amended by [0019](../docs/decisions/0019-short-search-queries.md). Follows [0002](../docs/decisions/0002-app-shell-and-navigation.md) (the Discover nav item ships with this spec), [0003](../docs/decisions/0003-icon-set.md), [0004](../docs/decisions/0004-placeholder-poster-art.md), [0005](../docs/decisions/0005-status-and-action-colours.md), [0006](../docs/decisions/0006-title-card.md) (card, grid and the search context line), [0007](../docs/decisions/0007-interaction-and-disclosure.md), [0008](../docs/decisions/0008-artwork-source.md), [0010](../docs/decisions/0010-deck-content-and-order.md) (adult and unaired titles), [0015](../docs/decisions/0015-deck-watched-only.md) and [0016](../docs/decisions/0016-library.md) (the edit sheet).
 
 ## Acceptance criteria
 
@@ -87,7 +87,7 @@ Implements [0018](../docs/decisions/0018-title-search.md). Follows [0002](../doc
 
 ## Boundaries
 
-- **Always:** one function, no new tables or indexes; tokens and 0005 colours only for their meanings; every save undoable; no score anywhere.
+- **Always:** one function and, per 0019, one prefix index; no new tables; tokens and 0005 colours only for their meanings; every save undoable; no score anywhere.
 - **Ask first:** any dependency (a debounce or search library is not needed); any schema change beyond the function and its grants; any change to the threshold that makes a criterion-3 query rank differently.
 - **Never:** call an external API or search service; edit an applied migration; send a request per keystroke without the debounce; streaks, goals or guilt copy.
 

@@ -209,6 +209,38 @@ describe("search_anime matching", () => {
   });
 });
 
+describe("search_anime short queries (0019)", () => {
+  it("under 4 letters, matches only titles that start with the query", async () => {
+    const ngnl = await anime("No Game No Life");
+    const noragami = await anime("Noragami");
+    await anime("Sousou no Frieren");
+    const aot = await anime("Shingeki no Kyojin", { synonyms: ["AoT"] });
+    const got = await search("no");
+    expect(got.map((r) => r.anime_id).sort()).toEqual([ngnl, noragami].sort());
+
+    const bySynonym = await search("aot");
+    expect(bySynonym.map((r) => r.anime_id)).toEqual([aot]);
+    expect(bySynonym[0]?.matched_title).toBe("AoT");
+  });
+
+  it("counts letters and digits only: k-on is short, bebo is not", async () => {
+    const kon = await anime("K-On!");
+    const bebop = await anime("Cowboy Bebop");
+    expect((await search("k-on")).map((r) => r.anime_id)).toEqual([kon]);
+    // 3 letters in the middle of a title: no prefix match.
+    expect(await search("bop")).toEqual([]);
+    // 4 letters: word similarity again.
+    expect((await search("bebo")).map((r) => r.anime_id)).toEqual([bebop]);
+  });
+
+  it("matches Japanese prefixes", async () => {
+    const frieren = await anime("Sousou no Frieren", {
+      synonyms: ["葬送のフリーレン"],
+    });
+    expect((await search("葬送")).map((r) => r.anime_id)).toEqual([frieren]);
+  });
+});
+
 describe("search_anime ranking", () => {
   it("puts an exact main title first, then an exact synonym, then partial matches", async () => {
     const partial = await anime("One Piece Film: Red", { score: 9.5 });
@@ -256,14 +288,22 @@ describe("search_anime state", () => {
       watchlisted: true,
     });
 
+    // Signed out: no state at all (spec 09 #2, migration for 0019).
     const [anon] = await search("bebop", { user: null });
     expect(anon).toMatchObject({
       anime_id: id,
       status: null,
       rating: null,
-      liked: false,
-      watchlisted: false,
+      liked: null,
+      watchlisted: null,
     });
+
+    // Signed in without a row: not liked, not on the watchlist.
+    const [none] = await search("bebop", { user: ALICE });
+    await pg.query(`delete from public.user_anime where user_id = $1`, [ALICE]);
+    const [cleared] = await search("bebop", { user: ALICE });
+    expect(none?.liked).toBe(true);
+    expect(cleared).toMatchObject({ liked: false, watchlisted: false });
   });
 });
 
