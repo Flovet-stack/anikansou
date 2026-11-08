@@ -109,6 +109,9 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
 
+- 2026-11-08: Growth order: foundations, indexable pages, then import, profiles and share cards, with a community launch in January 2027; hand-written watch-order guides move up from "Can wait" (0030).
+- 2026-11-08: Search Console and Bing Webmaster Tools for search, PostHog for product analytics and errors, SQL for user counts; Sentry only if PostHog's error tracking fails a test (0029, 0031).
+- 2026-11-08: Public title pages, with only complete titles indexed and the index grown in steps; crawlers never trigger AniList lookups (0028).
 - 2026-11-08: Search filters on Discover (type, genre, year, status, season, sort), with a curated genre list; studio filter waits for a name cleanup (0020).
 - 2026-11-07: Title search on Discover (`/discover`) across every title and synonym, in any script; filters come later (0018).
 - 2026-11-07: AniList cover images, looked up only for titles on screen and stored as links; written permission not yet obtained (0017).
