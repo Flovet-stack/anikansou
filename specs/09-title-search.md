@@ -1,6 +1,6 @@
 # 09: Title search
 
-Status: In progress (branch claude/title-search) · Written: 2026-11-07
+Status: Done (PR #18, merged 2026-11-07; decisions 0018 and 0019 approved) · Written: 2026-11-07
 
 Brief: Must have #11 (advanced search), the "title in any language" part. Filters come later.
 
