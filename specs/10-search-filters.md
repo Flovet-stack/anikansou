@@ -10,7 +10,7 @@ A fan on **Discover** narrows results by type, genre, year, status and season, a
 
 ## Decisions
 
-Implements [0020](../docs/decisions/0020-search-filters.md). Builds on [0018](../docs/decisions/0018-title-search.md) and [0019](../docs/decisions/0019-short-search-queries.md). Follows [0006](../docs/decisions/0006-title-card.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [0010](../docs/decisions/0010-deck-content-and-order.md).
+Implements [0020](../docs/decisions/0020-search-filters.md), with browsing as amended by [0027](../docs/decisions/0027-browse-order-and-speed.md). Builds on [0018](../docs/decisions/0018-title-search.md) and [0019](../docs/decisions/0019-short-search-queries.md). Follows [0006](../docs/decisions/0006-title-card.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [0010](../docs/decisions/0010-deck-content-and-order.md).
 
 ## Acceptance criteria
 

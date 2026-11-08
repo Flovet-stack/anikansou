@@ -54,6 +54,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
+  load.mockReset();
   window.history.replaceState(null, "", "/discover");
 });
 

@@ -905,6 +905,7 @@ export type Database = {
       }
     }
     Functions: {
+      genre_tag_names: { Args: { p_key: string }; Returns: string[] }
       is_adult: { Args: { p_anime_id: number }; Returns: boolean }
       record_anilist_covers: { Args: { p_covers: Json }; Returns: number }
     }

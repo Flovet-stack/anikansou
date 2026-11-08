@@ -556,6 +556,10 @@ describe("search_anime sorts (0020)", () => {
         [`site${site}`, known],
       );
     }
+    // Ordinary scores elsewhere pull the catalog average down, as in real data.
+    for (let n = 0; n < 5; n++) {
+      await anime(`Filler ${n}`, { type: "movie", score: 5 });
+    }
     await pg.exec(`refresh materialized view public.deck_order`);
     expect(ids(await filtered({ types: ["tv", "special"] }))).toEqual([
       known,
