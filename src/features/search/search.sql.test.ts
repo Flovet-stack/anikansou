@@ -5,11 +5,13 @@
  * 200-result cap. Ranking on the live catalog is checked in the PR's probe.
  */
 import type { PGlite } from "@electric-sql/pglite";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Test-only: the migrated database fixture lives with the importer's tests.
 import { createTestDb } from "../../sync/fixtures/test-db";
 import { searchText } from "../../sync/normalize";
+
+import { GENRE_KEYS } from "./filters";
 
 const ALICE = "00000000-0000-4000-8000-00000000000a";
 const BOB = "00000000-0000-4000-8000-00000000000b";
@@ -68,6 +70,48 @@ function search(
   );
 }
 
+type FilterArgs = {
+  query?: string | null;
+  offset?: number;
+  limit?: number;
+  types?: string[];
+  genres?: string[];
+  yearFrom?: number;
+  yearTo?: number;
+  season?: string;
+  status?: string;
+  sort?: string;
+  user?: string | null;
+};
+
+/** The filtered search, with named arguments like the app's call. */
+function filtered(args: FilterArgs) {
+  const user = args.user === undefined ? ALICE : args.user;
+  return as(user ? "authenticated" : "anon", user, () =>
+    rows<Hit>(
+      `select * from public.search_anime(
+         p_query => $1, p_offset => $2, p_limit => $3, p_types => $4,
+         p_genres => $5, p_year_from => $6, p_year_to => $7, p_season => $8,
+         p_status => $9, p_sort => $10)`,
+      [
+        args.query ?? null,
+        args.offset ?? 0,
+        args.limit ?? 24,
+        args.types ?? null,
+        args.genres ?? null,
+        args.yearFrom ?? null,
+        args.yearTo ?? null,
+        args.season ?? null,
+        args.status ?? null,
+        args.sort ?? "best",
+      ],
+    ),
+  );
+}
+
+const ids = (hits: Hit[]) => hits.map((hit) => hit.anime_id);
+const sorted = (list: number[]) => [...list].sort((a, b) => a - b);
+
 async function errorOf(promise: Promise<unknown>): Promise<string> {
   try {
     await promise;
@@ -84,18 +128,27 @@ async function anime(
     synonyms?: string[];
     score?: number;
     retired?: boolean;
-    status?: string;
+    status?: string | null;
     tags?: string[];
+    type?: string | null;
+    year?: number | null;
+    season?: string | null;
   } = {},
 ) {
   const [inserted] = await rows<{ id: number }>(
     `insert into catalog.anime
        (title, type, status, year, content_hash, first_seen_run_id, last_changed_run_id, retired_at)
-     values ($1, 'tv', $3::catalog.anime_status, 2020, 'h',
+     values ($1, $4::catalog.anime_type, $3::catalog.anime_status, $5, 'h',
              (select max(id) from catalog.import_runs), (select max(id) from catalog.import_runs),
              case when $2 then now() end)
      returning id`,
-    [title, opts.retired ?? false, opts.status ?? "finished"],
+    [
+      title,
+      opts.retired ?? false,
+      opts.status === undefined ? "finished" : opts.status,
+      opts.type === undefined ? "tv" : opts.type,
+      opts.year === undefined ? 2020 : opts.year,
+    ],
   );
   if (!inserted) throw new Error(`Could not insert ${title}`);
   const id = inserted.id;
@@ -108,6 +161,12 @@ async function anime(
       `insert into catalog.anime_titles (anime_id, title, kind, search_text)
        values ($1, $2, $3::catalog.title_kind, $4)`,
       [id, t.title, t.kind, searchText(t.title)],
+    );
+  }
+  if (opts.season) {
+    await pg.query(
+      `update catalog.anime set season = $2::catalog.season where id = $1`,
+      [id, opts.season],
     );
   }
   if (opts.score !== undefined) {
@@ -140,6 +199,11 @@ beforeEach(async () => {
     insert into catalog.import_runs (data_source_id, release_tag, sha256, trigger)
       select id, 'test', 'x', 'manual' from catalog.data_sources limit 1;
   `);
+});
+
+// Each test has its own database: free it, or a long file runs out of memory.
+afterEach(async () => {
+  await pg.close();
 });
 
 describe("search_anime matching", () => {
@@ -351,5 +415,304 @@ describe("search_anime limits", () => {
       }
     }
     expect(seen.size).toBe(200);
+  });
+});
+
+describe("search_anime filters (0020)", () => {
+  it("matches any of several types", async () => {
+    const tv = await anime("Alpha", { type: "tv" });
+    const movie = await anime("Beta", { type: "movie" });
+    await anime("Gamma", { type: "ova" });
+    await anime("Untyped", { type: null });
+    expect(sorted(ids(await filtered({ types: ["tv", "movie"] })))).toEqual(
+      sorted([tv, movie]),
+    );
+  });
+
+  it("matches all of several genres", async () => {
+    const both = await anime("Both", { tags: ["action", "comedy"] });
+    await anime("Action only", { tags: ["action"] });
+    await anime("Comedy only", { tags: ["comedy"] });
+    expect(ids(await filtered({ genres: ["action", "comedy"] }))).toEqual([
+      both,
+    ]);
+  });
+
+  it.each(["sci-fi", "science fiction", "sci fi", "science-fiction"])(
+    "finds Sci-Fi through the %s tag",
+    async (tag) => {
+      const id = await anime("Space show", { tags: [tag] });
+      await anime("Not space", { tags: ["comedy"] });
+      expect(ids(await filtered({ genres: ["sci-fi"] }))).toEqual([id]);
+    },
+  );
+
+  it("shows an anime with several of a genre's tags once", async () => {
+    const id = await anime("Doubly space", {
+      tags: ["sci-fi", "science fiction"],
+    });
+    expect(ids(await filtered({ genres: ["sci-fi"] }))).toEqual([id]);
+  });
+
+  it("filters by year range, season and status", async () => {
+    const fall = await anime("Fall one", { year: 2023, season: "fall" });
+    const spring = await anime("Spring one", { year: 2023, season: "spring" });
+    const nineties = await anime("Old one", { year: 1995 });
+    const airing = await anime("Airing one", { year: 2024, status: "ongoing" });
+
+    expect(
+      ids(await filtered({ yearFrom: 2023, yearTo: 2023, season: "fall" })),
+    ).toEqual([fall]);
+    expect(
+      sorted(ids(await filtered({ yearFrom: 2023, yearTo: 2023 }))),
+    ).toEqual(sorted([fall, spring]));
+    expect(ids(await filtered({ yearFrom: 1990, yearTo: 1999 }))).toEqual([
+      nineties,
+    ]);
+    expect(ids(await filtered({ status: "ongoing" }))).toEqual([airing]);
+  });
+
+  it("shows anime missing a value only when that filter is off", async () => {
+    const dated = await anime("Dated", { year: 2020, type: "tv" });
+    const undated = await anime("Undated", { year: null, type: "tv" });
+    expect(sorted(ids(await filtered({ types: ["tv"] })))).toEqual(
+      sorted([dated, undated]),
+    );
+    expect(ids(await filtered({ yearFrom: 2000, yearTo: 2030 }))).toEqual([
+      dated,
+    ]);
+  });
+
+  it("skips retired anime", async () => {
+    await anime("Gone", { retired: true, type: "movie" });
+    expect(await filtered({ types: ["movie"] })).toEqual([]);
+  });
+
+  it("combines a query with filters", async () => {
+    const hit = await anime("Mobile Suit Gundam", {
+      tags: ["mecha"],
+      type: "tv",
+    });
+    await anime("Gundam Movie", { tags: ["mecha"], type: "movie" });
+    await anime("Gundam Quiz", { tags: ["comedy"], type: "tv" });
+    expect(
+      ids(
+        await filtered({ query: "gundam", types: ["tv"], genres: ["mecha"] }),
+      ),
+    ).toEqual([hit]);
+  });
+
+  it("keeps 0019's prefix rule for a short query with a filter", async () => {
+    const starts = await anime("No Game No Life", { tags: ["comedy"] });
+    await anime("Sousou no Frieren", { tags: ["comedy"] });
+    expect(ids(await filtered({ query: "no", genres: ["comedy"] }))).toEqual([
+      starts,
+    ]);
+  });
+
+  it("works signed out, with no state", async () => {
+    const id = await anime("Open to all", { type: "movie" });
+    const [row] = await filtered({ types: ["movie"], user: null });
+    expect(row).toMatchObject({ anime_id: id, liked: null, status: null });
+  });
+
+  it("never returns a score", async () => {
+    await anime("Scored", { type: "movie", score: 9 });
+    const [row] = await filtered({ types: ["movie"] });
+    expect(
+      Object.keys(row ?? {}).filter((key) =>
+        /score|similar|mean|median/.test(key),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("search_anime sorts (0020)", () => {
+  it("best match without a query: aired first, then by private score", async () => {
+    const low = await anime("Low", { type: "tv", score: 2 });
+    const high = await anime("High", { type: "tv", score: 9 });
+    const unaired = await anime("Unaired", {
+      type: "tv",
+      status: "upcoming",
+      score: 10,
+    });
+    const none = await anime("None", { type: "tv" });
+    expect(ids(await filtered({ types: ["tv"] }))).toEqual([
+      high,
+      low,
+      none,
+      unaired,
+    ]);
+  });
+
+  it("browsing uses the deck's damped rank, so a tiny sample's perfect score doesn't lead", async () => {
+    const perfect = await anime("Tiny sample", { type: "tv", score: 10 });
+    const known = await anime("Well known", { type: "tv", score: 9 });
+    const special = await anime("A special", { type: "special", score: 9.5 });
+    for (let site = 0; site < 8; site++) {
+      await pg.query(
+        `insert into catalog.external_ids (site, external_id, anime_id, url)
+         values ($1, '1', $2, 'https://x.test')`,
+        [`site${site}`, known],
+      );
+    }
+    // Ordinary scores elsewhere pull the catalog average down, as in real data.
+    for (let n = 0; n < 5; n++) {
+      await anime(`Filler ${n}`, { type: "movie", score: 5 });
+    }
+    await pg.exec(`refresh materialized view public.deck_order`);
+    expect(ids(await filtered({ types: ["tv", "special"] }))).toEqual([
+      known,
+      perfect,
+      special,
+    ]);
+  });
+
+  it("counts up to 201 and stops at the 200th when browsing too", async () => {
+    await pg.exec(`
+      insert into catalog.anime (title, type, status, year, content_hash, first_seen_run_id, last_changed_run_id)
+      select 'Mecha ' || n, 'tv', 'finished', 2020, 'h',
+             (select max(id) from catalog.import_runs), (select max(id) from catalog.import_runs)
+      from generate_series(1, 210) n;
+    `);
+    const [first] = await filtered({ types: ["tv"], limit: 1 });
+    expect(first?.total).toBe(201);
+    const last = await filtered({ types: ["tv"], offset: 192 });
+    expect(last).toHaveLength(8);
+    expect(last[0]?.total).toBe(201);
+  });
+
+  it("newest and oldest, undated last, seasons in order", async () => {
+    const fall = await anime("Fall", { year: 2023, season: "fall" });
+    const spring = await anime("Spring", { year: 2023, season: "spring" });
+    const old = await anime("Old", { year: 2001 });
+    const undated = await anime("Undated", { year: null });
+    expect(ids(await filtered({ types: ["tv"], sort: "newest" }))).toEqual([
+      fall,
+      spring,
+      old,
+      undated,
+    ]);
+    expect(ids(await filtered({ types: ["tv"], sort: "oldest" }))).toEqual([
+      old,
+      spring,
+      fall,
+      undated,
+    ]);
+  });
+
+  it("title A-Z ignores case", async () => {
+    const b = await anime("beta");
+    const a = await anime("Alpha");
+    const c = await anime("Charlie");
+    expect(ids(await filtered({ types: ["tv"], sort: "title" }))).toEqual([
+      a,
+      b,
+      c,
+    ]);
+  });
+
+  it("sorts among matches with a query", async () => {
+    const older = await anime("Gundam Old", { year: 1979 });
+    const newer = await anime("Gundam New", { year: 2022 });
+    await anime("Bebop", { year: 2030 });
+    expect(ids(await filtered({ query: "gundam", sort: "newest" }))).toEqual([
+      newer,
+      older,
+    ]);
+  });
+
+  it.each(["best", "newest", "oldest", "title"])(
+    "%s keeps a stable order across pages, even with ties",
+    async (sort) => {
+      await pg.exec(`
+        with a as (
+          insert into catalog.anime (title, type, status, year, content_hash, first_seen_run_id, last_changed_run_id)
+          select 'Same title', 'tv', 'finished', 2020, 'h',
+                 (select max(id) from catalog.import_runs), (select max(id) from catalog.import_runs)
+          from generate_series(1, 30)
+          returning id, title
+        )
+        insert into catalog.anime_titles (anime_id, title, kind, search_text)
+        select id, title, 'main', lower(title) from a;
+      `);
+      const first = ids(await filtered({ types: ["tv"], sort, limit: 12 }));
+      const second = ids(
+        await filtered({ types: ["tv"], sort, limit: 12, offset: 12 }),
+      );
+      const third = ids(
+        await filtered({ types: ["tv"], sort, limit: 12, offset: 24 }),
+      );
+      expect(new Set([...first, ...second, ...third]).size).toBe(30);
+    },
+  );
+});
+
+describe("search_anime filter arguments (0020)", () => {
+  it("needs a query or a filter; sort alone isn't enough", async () => {
+    await anime("Anything");
+    expect(await errorOf(filtered({}))).toMatch(/at least 2 characters/);
+    expect(await errorOf(filtered({ sort: "newest" }))).toMatch(
+      /at least 2 characters/,
+    );
+  });
+
+  it("rejects a one-letter query even with a filter", async () => {
+    expect(await errorOf(filtered({ query: "a", types: ["tv"] }))).toMatch(
+      /at least 2 characters/,
+    );
+  });
+
+  it("rejects more genres than exist", async () => {
+    expect(
+      await errorOf(filtered({ genres: Array(25).fill("action") as string[] })),
+    ).toMatch(/Too many genres/);
+  });
+
+  it("rejects unknown values and a season without a single year", async () => {
+    expect(await errorOf(filtered({ types: ["nope"] }))).toMatch(
+      /Unknown type/,
+    );
+    expect(await errorOf(filtered({ genres: ["hentai"] }))).toMatch(
+      /Unknown genre/,
+    );
+    expect(await errorOf(filtered({ types: ["tv"], sort: "score" }))).toMatch(
+      /Unknown sort/,
+    );
+    expect(await errorOf(filtered({ status: "lost" }))).toMatch(
+      /Unknown status/,
+    );
+    expect(
+      await errorOf(
+        filtered({ yearFrom: 2023, yearTo: 2023, season: "monsoon" }),
+      ),
+    ).toMatch(/Unknown season/);
+    expect(
+      await errorOf(filtered({ yearFrom: 1990, yearTo: 1999, season: "fall" })),
+    ).toMatch(/single year/);
+    expect(await errorOf(filtered({ season: "fall" }))).toMatch(/single year/);
+  });
+});
+
+describe("catalog.genre_tag_names", () => {
+  it("knows every genre the app offers, and nothing else", async () => {
+    for (const key of GENRE_KEYS) {
+      const [row] = await rows<{ names: string[] | null }>(
+        `select catalog.genre_tag_names($1) as names`,
+        [key],
+      );
+      expect(row?.names?.length, key).toBeGreaterThan(0);
+    }
+    const [unknown] = await rows<{ names: string[] | null }>(
+      `select catalog.genre_tag_names('hentai') as names`,
+    );
+    expect(unknown?.names).toBeNull();
+  });
+
+  it("has no API access", async () => {
+    const message = await errorOf(
+      as("anon", null, () => rows(`select catalog.genre_tag_names('action')`)),
+    );
+    expect(message).toMatch(/permission denied/);
   });
 });

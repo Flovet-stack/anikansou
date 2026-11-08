@@ -1,6 +1,6 @@
 # 10: Search filters
 
-Status: Blocked (needs decision 0020 approved) · Written: 2026-11-08
+Status: In progress (branch claude/search-filters; decision 0020 approved) · Written: 2026-11-08
 
 Brief: Must have #11 (advanced search), the genre/tags, year and format parts, plus season, status and sort. Studio comes later (0020).
 
@@ -10,7 +10,7 @@ A fan on **Discover** narrows results by type, genre, year, status and season, a
 
 ## Decisions
 
-Implements [0020](../docs/decisions/0020-search-filters.md). Builds on [0018](../docs/decisions/0018-title-search.md) and [0019](../docs/decisions/0019-short-search-queries.md). Follows [0006](../docs/decisions/0006-title-card.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [0010](../docs/decisions/0010-deck-content-and-order.md).
+Implements [0020](../docs/decisions/0020-search-filters.md), with browsing as amended by [0027](../docs/decisions/0027-browse-order-and-speed.md). Builds on [0018](../docs/decisions/0018-title-search.md) and [0019](../docs/decisions/0019-short-search-queries.md). Follows [0006](../docs/decisions/0006-title-card.md), [0007](../docs/decisions/0007-interaction-and-disclosure.md) and [0010](../docs/decisions/0010-deck-content-and-order.md).
 
 ## Acceptance criteria
 

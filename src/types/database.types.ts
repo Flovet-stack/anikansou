@@ -905,6 +905,7 @@ export type Database = {
       }
     }
     Functions: {
+      genre_tag_names: { Args: { p_key: string }; Returns: string[] }
       is_adult: { Args: { p_anime_id: number }; Returns: boolean }
       record_anilist_covers: { Args: { p_covers: Json }; Returns: number }
     }
@@ -1118,7 +1119,18 @@ export type Database = {
       }
       library_remove: { Args: { p_anime_id: number }; Returns: Json }
       search_anime: {
-        Args: { p_limit?: number; p_offset?: number; p_query: string }
+        Args: {
+          p_genres?: string[]
+          p_limit?: number
+          p_offset?: number
+          p_query?: string
+          p_season?: string
+          p_sort?: string
+          p_status?: string
+          p_types?: string[]
+          p_year_from?: number
+          p_year_to?: number
+        }
         Returns: {
           anime_id: number
           duration_seconds: number

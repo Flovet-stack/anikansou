@@ -14,6 +14,7 @@ import * as tracking from "@/features/tracking/actions";
 import { EMPTY_STATE } from "@/features/tracking/schemas";
 
 import * as searchActions from "../actions";
+import { EMPTY_FILTERS } from "../filters";
 import type { SearchCard, SearchPage } from "../types";
 import { DiscoverView } from "./discover-view";
 
@@ -53,6 +54,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
+  load.mockReset();
   window.history.replaceState(null, "", "/discover");
 });
 
@@ -129,7 +131,7 @@ describe("DiscoverView search", () => {
       await vi.advanceTimersByTimeAsync(100);
     });
     expect(load).toHaveBeenCalledTimes(1);
-    expect(load).toHaveBeenCalledWith("frie", 0);
+    expect(load).toHaveBeenCalledWith("frie", EMPTY_FILTERS, 0);
 
     expect(
       screen.getByRole("heading", { name: '1 result for "frie"' }),
@@ -222,7 +224,7 @@ describe("DiscoverView search", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Show more" }));
     });
-    expect(load).toHaveBeenCalledWith("mecha", 24);
+    expect(load).toHaveBeenCalledWith("mecha", EMPTY_FILTERS, 24);
     expect(screen.getByText("Mecha 25")).toBeTruthy();
   });
 });
@@ -301,5 +303,308 @@ describe("DiscoverView cards", () => {
     });
     const watched = within(actions).getByRole("button", { name: /watched/i });
     expect((watched as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("DiscoverView filters", () => {
+  const ACTION = { ...EMPTY_FILTERS, genres: ["action" as const] };
+
+  it("renders a filtered link's results, count without a query, and chips", () => {
+    setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "Cowboy Bebop")], 36),
+    });
+    expect(screen.getByRole("heading", { name: "36 results" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    ).toBeTruthy();
+  });
+
+  it("removing a chip searches again after the debounce and updates the URL", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")]));
+    setup({
+      initialQuery: "bebop",
+      initialFilters: ACTION,
+      initialPage: page([card(1, "Bebop TV")]),
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    expect(load).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(load).toHaveBeenCalledWith("bebop", EMPTY_FILTERS, 0);
+    expect(window.location.search).toBe("?q=bebop");
+  });
+
+  it("Clear filters keeps the query; Clear search keeps the filters", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")]));
+    const field = setup({
+      initialQuery: "bebop",
+      initialFilters: ACTION,
+      initialPage: page([card(1, "Bebop TV")]),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect((field as HTMLInputElement).value).toBe("");
+    expect(load).toHaveBeenLastCalledWith("", ACTION, 0);
+    expect(window.location.search).toBe("?genre=action");
+
+    fireEvent.change(field, { target: { value: "bebop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect((field as HTMLInputElement).value).toBe("bebop");
+    expect(load).toHaveBeenLastCalledWith("bebop", EMPTY_FILTERS, 0);
+  });
+
+  it("shows 0020's no-results state, and Clear filters recovers", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")]));
+    setup({ initialFilters: ACTION, initialPage: page([]) });
+    expect(screen.getByText("No anime match these filters.")).toBeTruthy();
+    expect(screen.getByText("Try removing a filter.")).toBeTruthy();
+    const clears = screen.getAllByRole("button", { name: "Clear filters" });
+    fireEvent.click(clears.at(-1) as HTMLElement);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    // Nothing left to search for: back to the empty state, no request.
+    expect(load).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        "Find any anime by its English, romaji or Japanese title.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("a late reply never overwrites a newer filter change", async () => {
+    vi.useFakeTimers();
+    let resolveOld: (value: SearchPage) => void = () => {};
+    load
+      .mockImplementationOnce(
+        () => new Promise<SearchPage>((resolve) => (resolveOld = resolve)),
+      )
+      .mockResolvedValueOnce(page([card(2, "Newer")]));
+    const field = setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")]),
+    });
+    await type(field, "older");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByRole("button", { name: "Newer" })).toBeTruthy();
+    await act(async () => {
+      resolveOld(page([card(3, "Older")]));
+    });
+    expect(screen.queryByRole("button", { name: "Older" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Newer" })).toBeTruthy();
+  });
+
+  it("the sort menu searches with the new sort and keeps the filters", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")]));
+    setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")]),
+    });
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "newest" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(load).toHaveBeenCalledWith("", { ...ACTION, sort: "newest" }, 0);
+    expect(window.location.search).toBe("?genre=action&sort=newest");
+  });
+
+  it("Show more keeps the filters and sort", async () => {
+    const filters = { ...ACTION, sort: "newest" as const };
+    const first = Array.from({ length: 24 }, (_, i) =>
+      card(i + 1, `Mecha ${i + 1}`),
+    );
+    load.mockResolvedValueOnce(page([card(25, "Mecha 25")], 25));
+    setup({ initialFilters: filters, initialPage: page(first, 25) });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    });
+    expect(load).toHaveBeenCalledWith("", filters, 24);
+  });
+
+  it("says when results stop at the cap", () => {
+    const cards = Array.from({ length: 200 }, (_, i) =>
+      card(i + 1, `Mecha ${i + 1}`),
+    );
+    setup({ initialFilters: ACTION, initialPage: page(cards, 201) });
+    expect(
+      screen.getByText(
+        "Showing the first 200. Add a filter to narrow it down.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+  });
+
+  it("drops a reply that lands during the debounce of a newer change", async () => {
+    vi.useFakeTimers();
+    let resolveOld: (value: SearchPage) => void = () => {};
+    load
+      .mockImplementationOnce(
+        () => new Promise<SearchPage>((resolve) => (resolveOld = resolve)),
+      )
+      .mockResolvedValueOnce(page([card(2, "Newer")]));
+    const field = setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")]),
+    });
+    await type(field, "older");
+    // The change starts its debounce, and the old reply lands inside it.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    await act(async () => {
+      resolveOld(page([card(3, "Older")]));
+    });
+    expect(screen.queryByRole("button", { name: "Older" })).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByRole("button", { name: "Newer" })).toBeTruthy();
+  });
+
+  it("drops a Show more page when the filters change while it loads", async () => {
+    vi.useFakeTimers();
+    let resolveMore: (value: SearchPage) => void = () => {};
+    load
+      .mockImplementationOnce(
+        () => new Promise<SearchPage>((resolve) => (resolveMore = resolve)),
+      )
+      .mockResolvedValueOnce(page([card(2, "Comedy pick")]));
+    const first = Array.from({ length: 24 }, (_, i) =>
+      card(i + 100, `Mecha ${i}`),
+    );
+    setup({ initialFilters: ACTION, initialPage: page(first, 30) });
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    await act(async () => {
+      resolveMore(page([card(99, "Stale page")]));
+    });
+    expect(screen.queryByRole("button", { name: "Stale page" })).toBeNull();
+  });
+
+  it("announces a search again when its count text is the same", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")], 201));
+    setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")], 201),
+    });
+    const region = document.querySelector("[aria-live=polite]") as HTMLElement;
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "newest" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(region.textContent).toBe("200+ results");
+
+    // Waiting on the reply, the region is empty, so the same text counts as new.
+    let resolveNext: (value: SearchPage) => void = () => {};
+    load.mockImplementationOnce(
+      () => new Promise<SearchPage>((resolve) => (resolveNext = resolve)),
+    );
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "title" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(region.textContent).toBe("");
+    await act(async () => {
+      resolveNext(page([card(2, "Bebop")], 201));
+    });
+    expect(region.textContent).toBe("200+ results");
+  });
+
+  it("a signed-out click keeps the filters through log-in", () => {
+    setup({
+      initialQuery: "bebop",
+      initialFilters: { ...ACTION, year: "2023", season: "fall" },
+      initialPage: page([card(1, "Bebop TV")]),
+      signedIn: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Bebop TV" }));
+    expect(push).toHaveBeenCalledWith(
+      `/auth/login?next=${encodeURIComponent(
+        "/discover?q=bebop&genre=action&year=2023&season=fall",
+      )}`,
+    );
+  });
+
+  describe("the phone sheet", () => {
+    /** Opens the sheet: its Filters button is the dialog's only trigger. */
+    function openSheet() {
+      fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+      return screen.getByRole("dialog");
+    }
+
+    it("applies only on Show results", async () => {
+      load.mockResolvedValue(page([card(2, "Bebop")]));
+      setup();
+      const sheet = openSheet();
+      fireEvent.click(within(sheet).getByRole("button", { name: "Comedy" }));
+      expect(load).not.toHaveBeenCalled();
+      expect(window.location.search).toBe("");
+
+      await act(async () => {
+        fireEvent.click(
+          within(sheet).getByRole("button", { name: "Show results" }),
+        );
+      });
+      expect(load).toHaveBeenCalledWith(
+        "",
+        { ...EMPTY_FILTERS, genres: ["comedy"] },
+        0,
+      );
+      expect(window.location.search).toBe("?genre=comedy");
+    });
+
+    it("closing without Show results discards the changes", () => {
+      setup();
+      const sheet = openSheet();
+      fireEvent.click(within(sheet).getByRole("button", { name: "Comedy" }));
+      fireEvent.click(
+        within(sheet).getByRole("button", { name: "Close filters" }),
+      );
+      expect(load).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("button", { name: "Remove filter: Comedy" }),
+      ).toBeNull();
+    });
+
+    it("keeps Season off until a single year is chosen", () => {
+      setup();
+      const sheet = openSheet();
+      const fall = within(sheet).getByRole("button", {
+        name: "Fall",
+      }) as HTMLButtonElement;
+      expect(fall.disabled).toBe(true);
+      fireEvent.click(within(sheet).getByRole("button", { name: "2023" }));
+      expect(fall.disabled).toBe(false);
+      fireEvent.click(within(sheet).getByRole("button", { name: "1990s" }));
+      expect(fall.disabled).toBe(true);
+    });
   });
 });
