@@ -1,6 +1,6 @@
 # 10: Search filters
 
-Status: Blocked (needs decision 0020 approved) · Written: 2026-11-08
+Status: In progress (branch claude/search-filters; decision 0020 approved) · Written: 2026-11-08
 
 Brief: Must have #11 (advanced search), the genre/tags, year and format parts, plus season, status and sort. Studio comes later (0020).
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { type RefObject, useEffect, useId } from "react";
 
 import { HugeiconsSearchIcon } from "@/components/ui/hugeicons-search";
 import { HugeiconsXIcon } from "@/components/ui/hugeicons-x";
@@ -13,12 +13,15 @@ import { MAX_QUERY_CHARS } from "../logic";
  * pointer devices (on touch it would open the keyboard over the page).
  */
 export function SearchField({
+  inputRef,
   value,
   autoFocus,
   onChange,
   onSubmit,
   onClear,
 }: {
+  /** The input, so the page can return focus to it. */
+  inputRef: RefObject<HTMLInputElement | null>;
   value: string;
   /** Focus on open when there's no query yet. */
   autoFocus: boolean;
@@ -27,12 +30,11 @@ export function SearchField({
   onClear: () => void;
 }) {
   const id = useId();
-  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!autoFocus) return;
-    if (window.matchMedia("(pointer: fine)").matches) input.current?.focus();
-  }, [autoFocus]);
+    if (window.matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
+  }, [autoFocus, inputRef]);
 
   return (
     <form
@@ -51,7 +53,7 @@ export function SearchField({
           <HugeiconsSearchIcon size={22} aria-hidden />
         </span>
         <input
-          ref={input}
+          ref={inputRef}
           id={id}
           type="search"
           name="q"
@@ -77,7 +79,7 @@ export function SearchField({
             aria-label="Clear search"
             onClick={() => {
               onClear();
-              input.current?.focus();
+              inputRef.current?.focus();
             }}
             className="absolute top-1/2 right-1.5 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors duration-(--duration-hover-out) focus-visible:outline-2 focus-visible:outline-kohaku hover-fine:bg-surface-3 hover-fine:text-foreground"
           >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ActionToast } from "@/components/feedback/action-toast";
 import { Button } from "@/components/ui/button";
@@ -10,39 +10,64 @@ import { EditSheet } from "@/features/library/components/edit-sheet";
 import { TitleCard } from "@/features/library/components/title-card";
 import { cn } from "@/lib/utils";
 
-import { discoverHref, isSearchable, resultsText } from "../logic";
+import {
+  EMPTY_FILTERS,
+  type Filters,
+  SORTS,
+  SORT_LABELS,
+  type Sort,
+  clearedFilters,
+  hasFilters,
+} from "../filters";
+import {
+  discoverHref,
+  noResultsText,
+  resultsText,
+  shouldSearch,
+} from "../logic";
 import type { SearchPage } from "../types";
 import { useSearch } from "../use-search";
+import { ActiveFilters } from "./active-filters";
+import { FilterMenus } from "./filter-menus";
+import { FilterSheet } from "./filter-sheet";
 import { SearchField } from "./search-field";
 
 const GRID =
   "grid grid-cols-2 gap-x-4 gap-y-6 min-[600px]:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] min-[600px]:gap-x-8 min-[600px]:gap-y-10";
 
 /**
- * Discover (spec 09, decision 0018): for now, title search only. Results
- * update as you type; signed-in fans can save from the grid or the edit
- * sheet; signed-out visitors are sent to log in and back.
+ * Discover (specs 09 and 10, decisions 0018 and 0020): title search and
+ * filters. Results update as you type or filter; signed-in fans can save from
+ * the grid or the edit sheet; signed-out visitors are sent to log in and back.
  */
 export function DiscoverView({
   initialQuery,
+  initialFilters = EMPTY_FILTERS,
   initialPage,
   initialError = false,
+  latestYear = new Date().getFullYear() + 1,
   signedIn,
 }: {
   initialQuery: string;
+  initialFilters?: Filters;
   initialPage: SearchPage | null;
   /** The server-side search failed: show the error and Try again. */
   initialError?: boolean;
+  /** The catalog's latest year, which starts the Year menu. */
+  latestYear?: number;
   signedIn: boolean;
 }) {
   const search = useSearch({
     initialQuery,
+    initialFilters,
     initialPage,
     initialError,
   });
   const actions = useCardActions(search.save);
   const router = useRouter();
-  const { results, status } = search;
+  const { results, status, filters, input } = search;
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const focusField = useCallback(() => fieldRef.current?.focus(), []);
 
   // Adult posters stay blurred until revealed, for this visit (0010).
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set());
@@ -59,15 +84,15 @@ export function DiscoverView({
   const open = useCallback(
     (animeId: number) => {
       if (!signedIn) {
-        // Log in, then come back to this search (spec 09 #15).
-        const back = discoverHref(results?.query ?? search.input);
+        // Log in, then come back to this search (spec 09 #15, spec 10 #12).
+        const back = discoverHref(input, filters);
         router.push(`/auth/login?next=${encodeURIComponent(back)}`);
         return;
       }
       setSheetId(animeId);
       setSheetOpen(true);
     },
-    [signedIn, router, results?.query, search.input],
+    [signedIn, router, input, filters],
   );
 
   // "Show more" moves focus to the first new card (spec 09 #12).
@@ -91,9 +116,9 @@ export function DiscoverView({
     return () => document.removeEventListener("keydown", onKey);
   }, [signedIn, undo]);
 
-  const searchable = isSearchable(search.input);
   const firstLoad = status === "loading" && results === null;
   const stale = status === "loading" && results !== null;
+  const atCap = results !== null && results.total > 200 && !search.hasMore;
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,15 +126,39 @@ export function DiscoverView({
         Discover
       </h1>
 
-      <SearchField
-        value={search.input}
-        autoFocus={initialQuery === ""}
-        onChange={search.change}
-        onSubmit={search.submit}
-        onClear={search.clear}
-      />
+      <div className="flex flex-col gap-3">
+        <SearchField
+          inputRef={fieldRef}
+          value={input}
+          autoFocus={initialQuery === "" && !hasFilters(initialFilters)}
+          onChange={search.change}
+          onSubmit={search.submit}
+          onClear={search.clear}
+        />
+        <div className="hidden md:block">
+          <FilterMenus
+            filters={filters}
+            latestYear={latestYear}
+            onChange={search.changeFilters}
+          />
+        </div>
+        <div className="flex md:hidden">
+          <FilterSheet
+            filters={filters}
+            latestYear={latestYear}
+            onApply={search.applyFilters}
+          />
+        </div>
+        <ActiveFilters
+          filters={filters}
+          onChange={search.changeFilters}
+          onEmptied={focusField}
+        />
+      </div>
 
-      {!searchable && results === null && status !== "error" ? (
+      {!shouldSearch(input, filters) &&
+      results === null &&
+      status !== "error" ? (
         <p className="text-body text-muted-foreground">
           Find any anime by its English, romaji or Japanese title.
         </p>
@@ -131,7 +180,15 @@ export function DiscoverView({
 
       {results && status !== "error" ? (
         results.total === 0 ? (
-          <NoResults query={results.query} onClear={search.clear} />
+          <NoResults
+            query={results.query}
+            filters={results.filters}
+            onClearSearch={search.clear}
+            onClearFilters={() => {
+              search.changeFilters(clearedFilters(filters));
+              focusField();
+            }}
+          />
         ) : (
           <section
             aria-labelledby="results-heading"
@@ -141,12 +198,18 @@ export function DiscoverView({
               stale && "opacity-50",
             )}
           >
-            <h2
-              id="results-heading"
-              className="text-small font-semibold text-muted-foreground tabular-nums"
-            >
-              {resultsText(results.total, results.query)}
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2
+                id="results-heading"
+                className="text-small font-semibold text-muted-foreground tabular-nums"
+              >
+                {resultsText(results.total, results.query)}
+              </h2>
+              <SortSelect
+                sort={filters.sort}
+                onChange={(sort) => search.changeFilters({ ...filters, sort })}
+              />
+            </div>
             <ul className={GRID}>
               {results.cards.map((card) => (
                 <li key={card.animeId} data-card-item={card.animeId}>
@@ -195,6 +258,11 @@ export function DiscoverView({
                 </Button>
               </div>
             ) : null}
+            {atCap ? (
+              <p className="text-center text-small text-muted-foreground">
+                Showing the first 200. Add a filter to narrow it down.
+              </p>
+            ) : null}
           </section>
         )
       ) : null}
@@ -234,18 +302,63 @@ export function DiscoverView({
   );
 }
 
-function NoResults({ query, onClear }: { query: string; onClear: () => void }) {
+/** Spec 10 #10: the same pill select as the Library's sort. */
+function SortSelect({
+  sort,
+  onChange,
+}: {
+  sort: Sort;
+  onChange: (sort: Sort) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center gap-3">
+      <label htmlFor={id} className="text-small text-muted-foreground">
+        Sort
+      </label>
+      <select
+        id={id}
+        value={sort}
+        onChange={(event) => onChange(event.target.value as Sort)}
+        className="min-h-11 rounded-full bg-surface-2 px-4 pr-8 text-small font-semibold text-foreground transition-colors hover-fine:bg-surface-3"
+      >
+        {SORTS.map((option) => (
+          <option key={option} value={option}>
+            {SORT_LABELS[option]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function NoResults({
+  query,
+  filters,
+  onClearSearch,
+  onClearFilters,
+}: {
+  query: string;
+  filters: Filters;
+  onClearSearch: () => void;
+  onClearFilters: () => void;
+}) {
+  const filtered = hasFilters(filters);
   return (
     <div className="flex flex-col items-start gap-4 rounded-lg bg-surface-1 px-6 py-10">
       <p className="font-display text-title-m font-extrabold break-words">
-        No anime match &ldquo;{query.trim()}&rdquo;.
+        {noResultsText(query, filters)}
       </p>
       <p className="max-w-reading text-body text-muted-foreground">
-        Check the spelling, or try another of its titles: the Japanese one or
-        the English one.
+        {filtered
+          ? "Try removing a filter."
+          : "Check the spelling, or try another of its titles: the Japanese one or the English one."}
       </p>
-      <Button variant="secondary" onClick={onClear}>
-        Clear search
+      <Button
+        variant="secondary"
+        onClick={filtered ? onClearFilters : onClearSearch}
+      >
+        {filtered ? "Clear filters" : "Clear search"}
       </Button>
     </div>
   );

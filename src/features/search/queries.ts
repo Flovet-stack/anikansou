@@ -5,23 +5,36 @@ import { getPosterSources } from "@/features/posters/queries";
 import { statusSchema } from "@/features/tracking/schemas";
 import { createClient } from "@/lib/supabase/server";
 
+import { type Filters, STATUS_TO_DB, yearRange } from "./filters";
 import { SEARCH_PAGE_SIZE, normalizeQuery } from "./logic";
 import type { SearchCard, SearchPage } from "./types";
 
 /**
- * A page of title-search results (decision 0018) from the `search_anime`
- * database function. Works signed out; signed in, each card carries the
- * caller's own state.
+ * A page of results (decisions 0018 and 0020) from the `search_anime`
+ * database function: a query, filters, or both. Works signed out; signed in,
+ * each card carries the caller's own state.
  */
 export async function searchAnime(
   query: string,
+  filters: Filters,
   offset: number,
 ): Promise<SearchPage> {
   const supabase = await createClient();
+  const normalized = normalizeQuery(query);
+  const { from, to } = yearRange(filters.year);
   const { data, error } = await supabase.rpc("search_anime", {
-    p_query: normalizeQuery(query),
+    ...(normalized ? { p_query: normalized } : {}),
     p_offset: offset,
     p_limit: SEARCH_PAGE_SIZE,
+    ...(filters.types.length > 0 ? { p_types: filters.types } : {}),
+    ...(filters.genres.length > 0 ? { p_genres: filters.genres } : {}),
+    ...(from === null ? {} : { p_year_from: from }),
+    ...(to === null ? {} : { p_year_to: to }),
+    ...(filters.season === null ? {} : { p_season: filters.season }),
+    ...(filters.status === null
+      ? {}
+      : { p_status: STATUS_TO_DB[filters.status] }),
+    p_sort: filters.sort,
   });
   if (error) throw error;
 
@@ -53,4 +66,21 @@ export async function searchAnime(
     };
   });
   return { cards, total: rows[0]?.total ?? 0 };
+}
+
+/** The catalog's latest year, which starts the Year menu (0020). */
+export async function getLatestYear(): Promise<number> {
+  const fallback = new Date().getFullYear() + 1;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("catalog")
+    .from("anime")
+    .select("year")
+    .is("retired_at", null)
+    .not("year", "is", null)
+    .order("year", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return fallback;
+  return data?.year ?? fallback;
 }

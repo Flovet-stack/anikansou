@@ -227,3 +227,165 @@ test.describe("Discover search on a phone (touch)", () => {
     await expect(field(page)).toHaveValue("葬送");
   });
 });
+
+test.describe("Discover filters (mouse and keyboard)", () => {
+  test("genre and year narrow results, survive a reload, and chips widen them again", async ({
+    page,
+  }) => {
+    await page.goto("/discover");
+    await page.getByRole("button", { name: "Genre" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Action" }).click();
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/genre=action/);
+    await expect(results(page)).toBeVisible();
+
+    await page.getByRole("button", { name: "Year" }).click();
+    await page.getByRole("menuitemradio", { name: "2023" }).click();
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/genre=action&year=2023/);
+    const narrowed = await results(page).innerText();
+
+    await page.reload();
+    await expect(results(page)).toHaveText(narrowed);
+    await expect(
+      page.getByRole("button", { name: "Remove filter: 2023" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Remove filter: 2023" }).click();
+    await expect(page).toHaveURL(/genre=action$/);
+    await expect(results(page)).not.toHaveText(narrowed);
+  });
+
+  test("an impossible combination shows no results, and Clear filters recovers", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/discover?q=cowboy%20bebop&type=special&genre=josei&year=1990s&status=upcoming",
+    );
+    await expect(page.getByText("No anime match these filters.")).toHaveCount(
+      2,
+    );
+    await page.getByRole("button", { name: "Clear filters" }).last().click();
+    await expect(page).toHaveURL(/\/discover\?q=cowboy%20bebop$/);
+    await expect(field(page)).toHaveValue("cowboy bebop");
+    await expect(
+      page.getByRole("button", { name: "Cowboy Bebop", exact: true }),
+    ).toBeVisible();
+  });
+
+  test("a query plus a filter; signed in, watchlist a filtered result and undo", async ({
+    page,
+  }) => {
+    await signUp(page);
+    await page.goto("/discover?q=cowboy%20bebop&type=tv");
+    const title = page
+      .getByRole("button", { name: /^Cowboy Bebop(,|$)/ })
+      .first();
+    await expect(title).toBeVisible();
+    await title.hover();
+    await page
+      .getByRole("group", {
+        name: "Quick actions for Cowboy Bebop",
+        exact: true,
+      })
+      .getByRole("button", { name: /watchlist/i })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Cowboy Bebop, on your watchlist" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /Undo/ }).click();
+    await expect(
+      page.getByRole("button", { name: "Cowboy Bebop", exact: true }),
+    ).toBeVisible();
+  });
+
+  test("Season waits for a single year, and the sort lands in the URL", async ({
+    page,
+  }) => {
+    await page.goto("/discover?year=2023&type=tv");
+    await expect(results(page)).toBeVisible();
+    await page.getByRole("button", { name: /^More filters/ }).click();
+    await page.getByRole("menuitemradio", { name: "Fall" }).click();
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/year=2023&season=fall/);
+
+    await page.getByRole("button", { name: /^Year/ }).click();
+    await page.getByRole("menuitemradio", { name: "1990s" }).click();
+    await page.keyboard.press("Escape");
+    await expect(page).not.toHaveURL(/season=/);
+    await expect(page).toHaveURL(/year=1990s/);
+
+    await page.getByLabel("Sort").selectOption("oldest");
+    await expect(page).toHaveURL(/sort=oldest/);
+  });
+
+  test("filter pages aren't indexed; plain Discover keeps its normal robots", async ({
+    page,
+  }) => {
+    await page.goto("/discover?type=tv");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      "content",
+      /noindex/,
+    );
+    await page.goto("/discover");
+    await expect(
+      page.locator('meta[name="robots"][content*="noindex"]'),
+    ).toHaveCount(0);
+  });
+});
+
+test.describe("Discover filters on a phone (touch)", () => {
+  const phone = devices["Pixel 7"];
+  test.use({
+    viewport: { width: 390, height: 844 },
+    userAgent: phone.userAgent,
+    deviceScaleFactor: phone.deviceScaleFactor,
+    isMobile: phone.isMobile,
+    hasTouch: phone.hasTouch,
+  });
+  test.slow();
+
+  test("the sheet applies only on Show results; a chip widens results; reload keeps them", async ({
+    page,
+  }) => {
+    await page.goto("/discover");
+    await page.getByRole("button", { name: /^Filters/ }).tap();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("button", { name: "Comedy" }).tap();
+    await expect(page).toHaveURL(/\/discover$/);
+    await sheet.getByRole("button", { name: "2023" }).tap();
+    await sheet.getByRole("button", { name: "Show results" }).tap();
+    await expect(page).toHaveURL(/genre=comedy&year=2023/);
+    await expect(results(page)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Filters/ })).toContainText(
+      "2",
+    );
+
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: "Remove filter: Comedy" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Remove filter: 2023" }).tap();
+    await expect(page).toHaveURL(/genre=comedy$/);
+  });
+
+  test("closing the sheet discards changes; no results recovers", async ({
+    page,
+  }) => {
+    await page.goto("/discover");
+    await page.getByRole("button", { name: /^Filters/ }).tap();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("button", { name: "Comedy" }).tap();
+    await sheet.getByRole("button", { name: "Close filters" }).tap();
+    await expect(sheet).toBeHidden();
+    await expect(page).toHaveURL(/\/discover$/);
+    await expect(
+      page.getByRole("button", { name: "Remove filter: Comedy" }),
+    ).toHaveCount(0);
+
+    await page.goto("/discover?q=cowboy%20bebop&type=special&genre=josei");
+    await page.getByRole("button", { name: "Clear filters" }).last().tap();
+    await expect(page).toHaveURL(/\/discover\?q=cowboy%20bebop$/);
+  });
+});
