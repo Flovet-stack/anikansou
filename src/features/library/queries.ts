@@ -36,7 +36,10 @@ export async function getLibraryPage(
   if (error) throw error;
 
   const rows = data ?? [];
-  const posters = await getPosterSources(rows.map((row) => row.anime_id));
+  const posters = await getPosterSources(
+    rows.map((row) => row.anime_id),
+    { lookUp: true },
+  );
   const cards: LibraryCard[] = rows.map((row) => {
     const status = statusSchema.safeParse(row.status);
     return {

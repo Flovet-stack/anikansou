@@ -31,6 +31,10 @@ export function DataAttribution({ className }: { className?: string }) {
       <a className={link} href="https://opendatacommons.org/licenses/dbcl/1-0/">
         Database Contents License 1.0
       </a>
+      . Cover images:{" "}
+      <a className={link} href="https://anilist.co">
+        AniList
+      </a>
       .
     </p>
   );

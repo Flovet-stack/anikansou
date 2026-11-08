@@ -333,6 +333,46 @@ test.describe("touch model", () => {
   });
 });
 
+// Spec 08: AniList covers, looked up by the server only.
+test("shows AniList covers without the browser ever calling AniList's API", async ({
+  page,
+}) => {
+  test.slow();
+  const apiCalls: string[] = [];
+  const errors: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).hostname === "graphql.anilist.co") {
+      apiCalls.push(request.url());
+    }
+  });
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  await signUpToDeck(page);
+  await expect(title(page)).toBeVisible();
+
+  const covers = page.locator(
+    '[data-testid="poster-image"][src^="https://s4.anilist.co/"]',
+  );
+  // A fresh user's deck opens on well-known titles, which AniList has covers
+  // for. Where AniList can't be reached from the test machine, run with
+  // E2E_ANILIST_UNREACHABLE=1 to check the generated poster instead: without
+  // it, a missing cover fails the test rather than passing as a fallback.
+  if (process.env.E2E_ANILIST_UNREACHABLE === "1") {
+    await expect(page.getByTestId("poster-fallback").first()).toBeAttached();
+  } else {
+    await expect(covers.first()).toBeAttached({ timeout: 20_000 });
+    await expect
+      .poll(() =>
+        covers.first().evaluate((img: HTMLImageElement) => img.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  }
+
+  // Covers load from AniList's image host only; the lookup stays on the server.
+  expect(apiCalls).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test("signed-out visitors are sent to log in", async ({ request }) => {
   const response = await request.get("/rate", { maxRedirects: 0 });
   expect(response.status()).toBe(307);
