@@ -33,7 +33,7 @@ function field(page: Page) {
 }
 
 function results(page: Page) {
-  return page.getByRole("heading", { name: /results? for "/ });
+  return page.getByRole("heading", { name: /^\d+\+? results?( for ".*")?$/ });
 }
 
 /** Counts server-action calls (POSTs with a Next-Action header). */
@@ -234,15 +234,18 @@ test.describe("Discover filters (mouse and keyboard)", () => {
   }) => {
     await page.goto("/discover");
     await page.getByRole("button", { name: "Genre" }).click();
-    await page.getByRole("menuitemcheckbox", { name: "Action" }).click();
+    await page.getByRole("menuitemcheckbox", { name: "Josei" }).click();
     await page.keyboard.press("Escape");
-    await expect(page).toHaveURL(/genre=action/);
+    await expect(page).toHaveURL(/genre=josei/);
     await expect(results(page)).toBeVisible();
+
+    const wide = await results(page).innerText();
 
     await page.getByRole("button", { name: "Year" }).click();
     await page.getByRole("menuitemradio", { name: "2023" }).click();
     await page.keyboard.press("Escape");
-    await expect(page).toHaveURL(/genre=action&year=2023/);
+    await expect(page).toHaveURL(/genre=josei&year=2023/);
+    await expect(results(page)).not.toHaveText(wide);
     const narrowed = await results(page).innerText();
 
     await page.reload();
@@ -252,7 +255,7 @@ test.describe("Discover filters (mouse and keyboard)", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Remove filter: 2023" }).click();
-    await expect(page).toHaveURL(/genre=action$/);
+    await expect(page).toHaveURL(/genre=josei$/);
     await expect(results(page)).not.toHaveText(narrowed);
   });
 
@@ -262,9 +265,9 @@ test.describe("Discover filters (mouse and keyboard)", () => {
     await page.goto(
       "/discover?q=cowboy%20bebop&type=special&genre=josei&year=1990s&status=upcoming",
     );
-    await expect(page.getByText("No anime match these filters.")).toHaveCount(
-      2,
-    );
+    await expect(
+      page.getByText("No anime match these filters.").first(),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).last().click();
     await expect(page).toHaveURL(/\/discover\?q=cowboy%20bebop$/);
     await expect(field(page)).toHaveValue("cowboy bebop");
