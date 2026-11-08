@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 import { HugeiconsCheckIcon } from "@/components/ui/hugeicons-check";
 import { HugeiconsChevronRightIcon } from "@/components/ui/hugeicons-chevron-right";
@@ -46,6 +46,7 @@ export function FilterMenus({
   latestYear: number;
   onChange: (next: Filters) => void;
 }) {
+  const seasonHint = useId();
   const moreCount =
     (filters.status === null ? 0 : 1) + (filters.season === null ? 0 : 1);
   return (
@@ -124,11 +125,18 @@ export function FilterMenus({
         <Menu.Group>
           <Menu.GroupLabel className={GROUP_LABEL}>Season</Menu.GroupLabel>
           {isSingleYear(filters.year) ? null : (
-            <p className="px-3 pb-1 text-caption text-muted-foreground">
+            <p
+              id={seasonHint}
+              className="px-3 pb-1 text-caption text-muted-foreground"
+            >
               Choose a single year first.
             </p>
           )}
           <Menu.RadioGroup
+            aria-label="Season"
+            aria-describedby={
+              isSingleYear(filters.year) ? undefined : seasonHint
+            }
             value={filters.season ?? ANY}
             onValueChange={(value: string) =>
               onChange({

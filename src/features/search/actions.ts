@@ -17,8 +17,10 @@ import type { SearchPage } from "./types";
 
 const filtersSchema = z
   .object({
-    types: z.array(z.enum(TYPES)),
-    genres: z.array(z.enum(GENRE_KEYS as [string, ...string[]])),
+    types: z.array(z.enum(TYPES)).max(TYPES.length),
+    genres: z
+      .array(z.enum(GENRE_KEYS as [string, ...string[]]))
+      .max(GENRE_KEYS.length),
     year: z
       .string()
       .regex(/^(\d{4}|\d{4}s|pre1970)$/)

@@ -454,6 +454,106 @@ describe("DiscoverView filters", () => {
     expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
   });
 
+  it("drops a reply that lands during the debounce of a newer change", async () => {
+    vi.useFakeTimers();
+    let resolveOld: (value: SearchPage) => void = () => {};
+    load
+      .mockImplementationOnce(
+        () => new Promise<SearchPage>((resolve) => (resolveOld = resolve)),
+      )
+      .mockResolvedValueOnce(page([card(2, "Newer")]));
+    const field = setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")]),
+    });
+    await type(field, "older");
+    // The change starts its debounce, and the old reply lands inside it.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    await act(async () => {
+      resolveOld(page([card(3, "Older")]));
+    });
+    expect(screen.queryByRole("button", { name: "Older" })).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByRole("button", { name: "Newer" })).toBeTruthy();
+  });
+
+  it("drops a Show more page when the filters change while it loads", async () => {
+    vi.useFakeTimers();
+    let resolveMore: (value: SearchPage) => void = () => {};
+    load
+      .mockImplementationOnce(
+        () => new Promise<SearchPage>((resolve) => (resolveMore = resolve)),
+      )
+      .mockResolvedValueOnce(page([card(2, "Comedy pick")]));
+    const first = Array.from({ length: 24 }, (_, i) =>
+      card(i + 100, `Mecha ${i}`),
+    );
+    setup({ initialFilters: ACTION, initialPage: page(first, 30) });
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove filter: Action" }),
+    );
+    await act(async () => {
+      resolveMore(page([card(99, "Stale page")]));
+    });
+    expect(screen.queryByRole("button", { name: "Stale page" })).toBeNull();
+  });
+
+  it("announces a search again when its count text is the same", async () => {
+    vi.useFakeTimers();
+    load.mockResolvedValue(page([card(2, "Bebop")], 201));
+    setup({
+      initialFilters: ACTION,
+      initialPage: page([card(1, "First")], 201),
+    });
+    const region = document.querySelector("[aria-live=polite]") as HTMLElement;
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "newest" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(region.textContent).toBe("200+ results");
+
+    let emptied = false;
+    const watcher = new MutationObserver(() => {
+      if (region.textContent === "") emptied = true;
+    });
+    watcher.observe(region, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    fireEvent.change(screen.getByLabelText("Sort"), {
+      target: { value: "title" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    watcher.disconnect();
+    expect(emptied).toBe(true);
+    expect(region.textContent).toBe("200+ results");
+  });
+
+  it("a signed-out click keeps the filters through log-in", () => {
+    setup({
+      initialQuery: "bebop",
+      initialFilters: { ...ACTION, year: "2023", season: "fall" },
+      initialPage: page([card(1, "Bebop TV")]),
+      signedIn: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Bebop TV" }));
+    expect(push).toHaveBeenCalledWith(
+      `/auth/login?next=${encodeURIComponent(
+        "/discover?q=bebop&genre=action&year=2023&season=fall",
+      )}`,
+    );
+  });
+
   describe("the phone sheet", () => {
     /** Opens the sheet: its Filters button is the dialog's only trigger. */
     function openSheet() {

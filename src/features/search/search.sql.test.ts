@@ -545,6 +545,39 @@ describe("search_anime sorts (0020)", () => {
     ]);
   });
 
+  it("browsing uses the deck's damped rank, so a tiny sample's perfect score doesn't lead", async () => {
+    const perfect = await anime("Tiny sample", { type: "tv", score: 10 });
+    const known = await anime("Well known", { type: "tv", score: 9 });
+    const special = await anime("A special", { type: "special", score: 9.5 });
+    for (let site = 0; site < 8; site++) {
+      await pg.query(
+        `insert into catalog.external_ids (site, external_id, anime_id, url)
+         values ($1, '1', $2, 'https://x.test')`,
+        [`site${site}`, known],
+      );
+    }
+    await pg.exec(`refresh materialized view public.deck_order`);
+    expect(ids(await filtered({ types: ["tv", "special"] }))).toEqual([
+      known,
+      perfect,
+      special,
+    ]);
+  });
+
+  it("counts up to 201 and stops at the 200th when browsing too", async () => {
+    await pg.exec(`
+      insert into catalog.anime (title, type, status, year, content_hash, first_seen_run_id, last_changed_run_id)
+      select 'Mecha ' || n, 'tv', 'finished', 2020, 'h',
+             (select max(id) from catalog.import_runs), (select max(id) from catalog.import_runs)
+      from generate_series(1, 210) n;
+    `);
+    const [first] = await filtered({ types: ["tv"], limit: 1 });
+    expect(first?.total).toBe(201);
+    const last = await filtered({ types: ["tv"], offset: 192 });
+    expect(last).toHaveLength(8);
+    expect(last[0]?.total).toBe(201);
+  });
+
   it("newest and oldest, undated last, seasons in order", async () => {
     const fall = await anime("Fall", { year: 2023, season: "fall" });
     const spring = await anime("Spring", { year: 2023, season: "spring" });
@@ -624,6 +657,12 @@ describe("search_anime filter arguments (0020)", () => {
     expect(await errorOf(filtered({ query: "a", types: ["tv"] }))).toMatch(
       /at least 2 characters/,
     );
+  });
+
+  it("rejects more genres than exist", async () => {
+    expect(
+      await errorOf(filtered({ genres: Array(25).fill("action") as string[] })),
+    ).toMatch(/Too many genres/);
   });
 
   it("rejects unknown values and a season without a single year", async () => {

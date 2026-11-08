@@ -46,7 +46,7 @@ export function ActiveFilters({
               refocus.current = index;
               onChange(chip.without);
             }}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-1 pr-3 pl-4 text-small font-semibold text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-kohaku md:min-h-9 hover-fine:bg-surface-2"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface-1 pr-3 pl-4 text-small font-semibold text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-kohaku pointer-fine:min-h-9 hover-fine:bg-surface-2"
           >
             {chip.label}
             <HugeiconsXIcon size={14} aria-hidden />
@@ -60,7 +60,7 @@ export function ActiveFilters({
             onChange(clearedFilters(filters));
             onEmptied();
           }}
-          className="inline-flex min-h-11 items-center rounded-full px-3 text-small font-semibold text-accent-text focus-visible:outline-2 focus-visible:outline-kohaku md:min-h-9 hover-fine:underline"
+          className="inline-flex min-h-11 items-center rounded-full px-3 text-small font-semibold text-accent-text focus-visible:outline-2 focus-visible:outline-kohaku pointer-fine:min-h-9 hover-fine:underline"
         >
           Clear filters
         </button>

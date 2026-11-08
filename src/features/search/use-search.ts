@@ -111,6 +111,8 @@ export function useSearch({
       return;
     }
     const query = effectiveQuery(raw);
+    // Emptied first, so the same count ("200+ results") is announced again.
+    setAnnouncement("");
     setStatus("loading");
     setLoadError(null);
     let page: Awaited<ReturnType<typeof loadSearchPage>>;
@@ -138,6 +140,8 @@ export function useSearch({
   const schedule = useCallback(
     (raw: string, next: Filters) => {
       cancelTimer();
+      // What's in flight is out of date already, even during the debounce.
+      requestId.current += 1;
       if (!shouldSearch(raw, next)) {
         // Nothing to search: any reply in flight is stale.
         void run(raw, next);

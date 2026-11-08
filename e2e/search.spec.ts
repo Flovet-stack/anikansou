@@ -322,6 +322,26 @@ test.describe("Discover filters (mouse and keyboard)", () => {
     await expect(page).toHaveURL(/sort=oldest/);
   });
 
+  test("signed out: filters survive the log-in round trip", async ({
+    page,
+    context,
+  }) => {
+    const { email, password } = await signUp(page);
+    await context.clearCookies();
+    await page.goto("/discover?type=tv&year=2023&season=fall");
+    const first = page.getByRole("list").locator("[data-card-id]").first();
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(page).toHaveURL(/\/auth\/login\?next=/);
+    await page.getByLabel("Email").filter({ visible: true }).fill(email);
+    await page.getByLabel("Password").filter({ visible: true }).fill(password);
+    await page.getByRole("button", { name: "Log in" }).click();
+    await expect(page).toHaveURL(/\/discover\?type=tv&year=2023&season=fall$/);
+    await expect(
+      page.getByRole("button", { name: "Remove filter: Fall" }),
+    ).toBeVisible();
+  });
+
   test("filter pages aren't indexed; plain Discover keeps its normal robots", async ({
     page,
   }) => {
@@ -388,7 +408,44 @@ test.describe("Discover filters on a phone (touch)", () => {
     ).toHaveCount(0);
 
     await page.goto("/discover?q=cowboy%20bebop&type=special&genre=josei");
+    await expect(
+      page.getByText("No anime match these filters.").first(),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).last().tap();
     await expect(page).toHaveURL(/\/discover\?q=cowboy%20bebop$/);
+    await expect(
+      page
+        .getByRole("button", { name: "More for Cowboy Bebop", exact: true })
+        .or(page.getByRole("button", { name: "Cowboy Bebop", exact: true }))
+        .first(),
+    ).toBeVisible();
+  });
+
+  test("signed in: a query plus a filter, watchlist a result and undo", async ({
+    page,
+  }) => {
+    await signUp(page);
+    await page.goto("/discover?q=cowboy%20bebop&type=tv");
+    await page
+      .getByRole("button", { name: "More for Cowboy Bebop", exact: true })
+      .tap();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("button", { name: /watchlist/i }).tap();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Cowboy Bebop, on your watchlist" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /Undo/ }).tap();
+    await expect(
+      page.getByRole("button", { name: "Cowboy Bebop", exact: true }),
+    ).toBeVisible();
+  });
+
+  test("removing a chip widens results", async ({ page }) => {
+    await page.goto("/discover?genre=josei&year=2023");
+    await expect(results(page)).toBeVisible();
+    const narrow = await results(page).innerText();
+    await page.getByRole("button", { name: "Remove filter: 2023" }).tap();
+    await expect(results(page)).not.toHaveText(narrow);
   });
 });
