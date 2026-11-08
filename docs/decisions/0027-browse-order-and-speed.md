@@ -1,8 +1,8 @@
 # 0027: Browsing uses the deck's order
 
-- **Status:** Proposed
+- **Status:** Approved
 - **Proposed:** 2026-11-08 by the product team (roles: Tech Lead, Database, Product)
-- **Approved:**
+- **Approved:** 2026-11-08 by Flovet ("Yes, apply it")
 - **Amends:** [0020](0020-search-filters.md), its "Best match" rule, for browsing without a query only
 - **Specs:** specs/10-search-filters.md
 
