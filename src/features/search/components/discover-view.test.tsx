@@ -520,23 +520,21 @@ describe("DiscoverView filters", () => {
     });
     expect(region.textContent).toBe("200+ results");
 
-    let emptied = false;
-    const watcher = new MutationObserver(() => {
-      if (region.textContent === "") emptied = true;
-    });
-    watcher.observe(region, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
+    // Waiting on the reply, the region is empty, so the same text counts as new.
+    let resolveNext: (value: SearchPage) => void = () => {};
+    load.mockImplementationOnce(
+      () => new Promise<SearchPage>((resolve) => (resolveNext = resolve)),
+    );
     fireEvent.change(screen.getByLabelText("Sort"), {
       target: { value: "title" },
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);
     });
-    watcher.disconnect();
-    expect(emptied).toBe(true);
+    expect(region.textContent).toBe("");
+    await act(async () => {
+      resolveNext(page([card(2, "Bebop")], 201));
+    });
     expect(region.textContent).toBe("200+ results");
   });
 
