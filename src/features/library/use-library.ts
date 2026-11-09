@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ActionToastProps } from "@/components/feedback/action-toast";
 import { type TrackingResult, deckUndo } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
+import { env } from "@/env";
 
 import { loadLibraryPage } from "./actions";
 import { pruneLeft, shiftCounts } from "./logic";
@@ -316,6 +318,17 @@ export function useLibrary({
 
       confirmed.current.set(id, result.state);
       if (left === 0) applyState(id, result.state);
+      if (
+        env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+        env.NEXT_PUBLIC_POSTHOG_HOST
+      ) {
+        posthog.capture("library_title_updated", {
+          status: result.state.status,
+          rating: result.state.rating,
+          liked: result.state.liked,
+          watchlisted: result.state.watchlisted,
+        });
+      }
       undoRef.current = {
         eventId: result.eventId,
         animeId: id,

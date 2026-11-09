@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ActionToastProps } from "@/components/feedback/action-toast";
@@ -8,6 +9,7 @@ import type { LibraryCard } from "@/features/library/types";
 import { safely } from "@/features/library/use-library";
 import { deckUndo } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
+import { env } from "@/env";
 
 import { loadSearchPage } from "./actions";
 import { EMPTY_FILTERS, type Filters } from "./filters";
@@ -129,6 +131,20 @@ export function useSearch({
     }
     setResults({ query, filters: next, ...page });
     setStatus("ready");
+    if (
+      env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+      env.NEXT_PUBLIC_POSTHOG_HOST
+    ) {
+      posthog.capture("discover_search_completed", {
+        has_query: query.length > 0,
+        type_filter_count: next.types.length,
+        genre_filter_count: next.genres.length,
+        has_year_filter: next.year !== null,
+        has_season_filter: next.season !== null,
+        has_status_filter: next.status !== null,
+        results_count: page.total,
+      });
+    }
     setAnnouncement(
       page.total === 0
         ? noResultsText(query, next)
@@ -336,6 +352,17 @@ export function useSearch({
 
       confirmed.current.set(id, result.state);
       if (left === 0) applyState(id, result.state);
+      if (
+        env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+        env.NEXT_PUBLIC_POSTHOG_HOST
+      ) {
+        posthog.capture("discover_title_updated", {
+          status: result.state.status,
+          rating: result.state.rating,
+          liked: result.state.liked,
+          watchlisted: result.state.watchlisted,
+        });
+      }
       undoRef.current = {
         eventId: result.eventId,
         animeId: id,
