@@ -22,7 +22,7 @@ This brief describes the whole product. It does not change when a phase or sprin
 
 ## Full feature scope
 
-Tags: **[data]** = needs a data source we don't have yet; decide before building.
+Tags: **[data]** = needs a data source we don't have yet; decide before building. **[legal]** = needs a legal and licensing check before building.
 
 ### Must have
 
