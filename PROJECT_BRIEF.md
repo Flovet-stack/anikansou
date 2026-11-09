@@ -1,6 +1,6 @@
 # Project brief: AniKansou
 
-Last updated: 2026-11-07
+Last updated: 2026-11-09
 
 This brief describes the whole product. It does not change when a phase or sprint is planned: phase plans and task specs live in `specs/`.
 
@@ -64,6 +64,15 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 33. Hidden gems filter
 34. Random pick from the watchlist
 35. Yearly watch goal
+
+Added 2026-11-09, numbered on from the end so existing references to #36–39 stay valid:
+
+40. "I am feeling" on the Library page: the line "I am feeling" followed by a few suggestion chips. Selecting one proposes a few anime from the user's own library that suit that feeling.
+41. Stream anime on the website **[data]** **[legal]**. Feasibility study first; nothing is built until its findings are logged as a decision and approved. The study checks each source's legality and licensing, cost, reliability and terms, against this brief's rules on external and paid APIs (Data sources and licences). Candidates to study:
+    - cinesrc.st: https://website.informer.com/visit?domain=cinesrc.st&pageviewId=desktop-302e373134303032303020313739343136383639382031383839313531373633
+    - GitHub topic `anime-api`: https://github.com/topics/anime-api
+    - ErickLimaS/anime-website: https://github.com/ErickLimaS/anime-website
+    - Anime Streaming API on RapidAPI: https://rapidapi.com/adarsh.chouhan11/api/anime-streaming
 
 ### Can wait
 
