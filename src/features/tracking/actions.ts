@@ -102,6 +102,19 @@ export async function setRating(
   });
 }
 
+/** How many anime the user has rated, or null when it can't be read. */
+export async function getMyRatedCount(): Promise<number | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("user_anime")
+    .select("anime_id", { count: "exact", head: true })
+    .not("rating", "is", null);
+  return error ? null : count;
+}
+
 export async function setWatchlist(
   animeId: number,
   on: boolean,

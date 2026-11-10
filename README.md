@@ -18,7 +18,7 @@ pnpm dev                     # http://localhost:3000
 
 You need a Supabase project for the URL and publishable key (Project Settings > API). The build fails if a variable is missing or malformed. Add new variables to [src/env.ts](src/env.ts) and `.env.example`, and read them through `env`, not `process.env`.
 
-On Vercel, set the same three variables, with `NEXT_PUBLIC_SITE_URL=https://anikansou.com` in production.
+On Vercel, set the same three variables, with `NEXT_PUBLIC_SITE_URL=https://anikansou.vercel.app` in production. PostHog analytics needs `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `NEXT_PUBLIC_POSTHOG_HOST`, set in the Production environment only; without both it stays off.
 
 ## Scripts
 

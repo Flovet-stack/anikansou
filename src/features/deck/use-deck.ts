@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -10,7 +9,7 @@ import {
   deckUndo,
 } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
-import { env } from "@/env";
+import { capture, reportRatedCount } from "@/lib/analytics/analytics";
 
 import { loadDeckPage } from "./actions";
 import {
@@ -302,6 +301,7 @@ export function useDeck({
     setRatedTotal(after);
     setSessionRated((n) => Math.max(0, n + delta));
     if (delta === 1) {
+      reportRatedCount(before, after);
       const reached = milestoneReached(before, after);
       if (reached !== null) {
         const message = milestoneMessage(reached);
@@ -389,17 +389,12 @@ export function useDeck({
         }),
       );
       showToast(done.label, true);
-      if (
-        env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-        env.NEXT_PUBLIC_POSTHOG_HOST
-      ) {
-        posthog.capture("deck_title_tracked", {
-          status: result.state.status,
-          rating: result.state.rating,
-          liked: result.state.liked,
-          watchlisted: result.state.watchlisted,
-        });
-      }
+      capture("deck_title_tracked", {
+        status: result.state.status,
+        rating: result.state.rating,
+        liked: result.state.liked,
+        watchlisted: result.state.watchlisted,
+      });
 
       let milestoneLine: string | null = null;
       if (before.rating === null && result.state.rating !== null) {
@@ -447,12 +442,7 @@ export function useDeck({
         setAnnouncement(result.error);
         return false;
       }
-      if (
-        env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-        env.NEXT_PUBLIC_POSTHOG_HOST
-      ) {
-        posthog.capture("deck_title_skipped", { skip_method: via });
-      }
+      capture("deck_title_skipped", { skip_method: via });
       if (via === "passed") {
         passed.current.set(card.animeId, result.eventId);
       } else {

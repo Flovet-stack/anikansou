@@ -39,7 +39,7 @@ Update the status in the same PR that changes it: the PR that starts the work se
 | [08: AniList posters](08-anilist-posters.md)                             | Ready       |
 | [09: Title search](09-title-search.md)                                   | Done        |
 | [10: Search filters](10-search-filters.md)                               | In progress |
-| [11: SEO and analytics foundations](11-seo-and-analytics-foundations.md) | Ready       |
+| [11: SEO and analytics foundations](11-seo-and-analytics-foundations.md) | In progress |
 
 ## Suggested sections
 
