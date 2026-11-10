@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import posthog from "posthog-js";
 
 import { ErrorState } from "@/components/layout/error-state";
-import { env } from "@/env";
+import { captureError } from "@/lib/analytics/analytics";
 
 // Errors in pages with navigation: shown inside the (app) shell.
 export default function AppError({
@@ -15,12 +14,7 @@ export default function AppError({
   retry: () => void;
 }) {
   useEffect(() => {
-    if (
-      env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-      env.NEXT_PUBLIC_POSTHOG_HOST
-    ) {
-      posthog.captureException(error);
-    }
+    captureError(error);
   }, [error]);
 
   return <ErrorState retry={retry} />;

@@ -29,11 +29,14 @@ export const rootMetadata: Metadata = {
     description: siteConfig.description,
   },
   twitter: { card: "summary_large_image" },
+  verification: { google: siteConfig.googleSiteVerification },
 };
 
 type PageMetadataInput = {
   /** Omit to use the site name as the title. */
   title?: string;
+  /** The whole title, with no site name added after it. Replaces `title`. */
+  absoluteTitle?: string;
   description?: string;
   /** Path of this page's own URL, such as `/anime/some-slug`. Becomes the canonical. */
   path: string;
@@ -48,17 +51,22 @@ type PageMetadataInput = {
  */
 export function buildMetadata({
   title,
+  absoluteTitle,
   description = siteConfig.description,
   path,
   images = [DEFAULT_OG_IMAGE],
 }: PageMetadataInput): Metadata {
   return {
-    ...(title ? { title } : {}),
+    ...(absoluteTitle
+      ? { title: { absolute: absoluteTitle } }
+      : title
+        ? { title }
+        : {}),
     description,
     alternates: { canonical: path },
     openGraph: {
       ...defaultOpenGraph,
-      title: title ?? siteConfig.name,
+      title: absoluteTitle ?? title ?? siteConfig.name,
       description,
       url: path,
       images,

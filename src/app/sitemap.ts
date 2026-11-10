@@ -10,5 +10,5 @@ import { siteConfig } from "@/lib/seo/site";
  * inaccurate, and it ignores priority and changeFrequency entirely.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [{ url: siteConfig.url }];
+  return [{ url: siteConfig.url }, { url: `${siteConfig.url}/discover` }];
 }

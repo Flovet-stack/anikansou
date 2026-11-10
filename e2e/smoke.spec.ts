@@ -6,7 +6,9 @@ test("home page renders branding and SEO tags", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("AniKansou");
-  await expect(page).toHaveTitle("AniKansou");
+  await expect(page).toHaveTitle(
+    "AniKansou: rate, track and remember every anime",
+  );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     siteUrl,
@@ -32,8 +34,25 @@ test("metadata is in the initial HTML, not streamed in later", async ({
   const html = await (await request.get("/")).text();
   const head = html.slice(0, html.indexOf("</head>"));
 
-  expect(head).toContain("<title>AniKansou</title>");
+  expect(head).toContain(
+    "<title>AniKansou: rate, track and remember every anime</title>",
+  );
   expect(head).toContain('rel="canonical"');
+});
+
+test("without a token, nothing is sent to PostHog (spec 11)", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (/posthog/i.test(request.url())) requests.push(request.url());
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "Discover" }).first().click();
+  await expect(page).toHaveURL(/\/discover$/);
+
+  expect(requests).toEqual([]);
 });
 
 test("the site is always dark, with no theme toggle (decision 0012)", async ({
@@ -87,7 +106,9 @@ test("sitemap.xml lists absolute URLs", async ({ request }) => {
   const response = await request.get("/sitemap.xml");
 
   expect(response.status()).toBe(200);
-  expect(await response.text()).toContain(`<loc>${siteUrl}</loc>`);
+  const body = await response.text();
+  expect(body).toContain(`<loc>${siteUrl}</loc>`);
+  expect(body).toContain(`<loc>${siteUrl}/discover</loc>`);
 });
 
 test("default Open Graph image is served", async ({ request }) => {

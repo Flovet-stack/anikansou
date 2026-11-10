@@ -1,4 +1,5 @@
 import {
+  getMyRatedCount,
   removeFromLibrary,
   setLike,
   setRating,
@@ -11,6 +12,7 @@ import {
   type WatchStatus,
   ratingToStars,
 } from "@/features/tracking/schemas";
+import { analyticsEnabled, reportRatedCount } from "@/lib/analytics/analytics";
 
 import type { LibraryCard } from "./types";
 import type { SaveIntent } from "./use-library";
@@ -19,6 +21,19 @@ import type { SaveIntent } from "./use-library";
 export type SaveCard = (card: LibraryCard, intent: SaveIntent) => Promise<void>;
 
 const STATUS_LABEL = (status: WatchStatus) => STATUS_META[status].label;
+
+/**
+ * Library and Discover don't hold the rated count, so ask for it, and only
+ * when analytics is on. Failing here never affects the rating.
+ */
+function reportNewRating() {
+  if (!analyticsEnabled()) return;
+  void getMyRatedCount()
+    .then((count) => {
+      if (count !== null) reportRatedCount(count - 1, count);
+    })
+    .catch(() => undefined);
+}
 
 /**
  * Every edit on a card or in the edit sheet, as optimistic saves with an Undo
@@ -69,7 +84,13 @@ export function useCardActions(save: SaveCard) {
       if (rating !== null && card.state.status !== "watched") return;
       void save(card, {
         optimistic: { ...card.state, rating },
-        call: () => setRating(card.animeId, rating),
+        call: async () => {
+          const result = await setRating(card.animeId, rating);
+          if (result.ok && card.state.rating === null && rating !== null) {
+            reportNewRating();
+          }
+          return result;
+        },
         label:
           rating === null
             ? "Rating cleared"

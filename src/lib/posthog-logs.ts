@@ -7,7 +7,7 @@ import {
   loggerProvider,
   posthogLogger,
   posthogLogsEnabled,
-} from "../../instrumentation";
+} from "@/instrumentation";
 
 function flushAfterResponse() {
   try {
