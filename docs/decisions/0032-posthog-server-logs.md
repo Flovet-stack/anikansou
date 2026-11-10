@@ -1,8 +1,8 @@
 # 0032: PostHog server logs
 
-- **Status:** Proposed
+- **Status:** Approved
 - **Proposed:** 2026-11-11 by the product team (roles: Tech Lead, Backend)
-- **Approved:** (pending Flovet)
+- **Approved:** 2026-11-11 by Flovet
 - **Specs:** specs/11-seo-and-analytics-foundations.md
 
 ## Context
