@@ -9,6 +9,7 @@ import {
   deckUndo,
 } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
+import { reportRatedCount } from "@/lib/analytics/analytics";
 
 import { loadDeckPage } from "./actions";
 import {
@@ -300,6 +301,7 @@ export function useDeck({
     setRatedTotal(after);
     setSessionRated((n) => Math.max(0, n + delta));
     if (delta === 1) {
+      reportRatedCount(before, after);
       const reached = milestoneReached(before, after);
       if (reached !== null) {
         const message = milestoneMessage(reached);

@@ -7,7 +7,10 @@ import { JsonLd } from "@/lib/seo/json-ld";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { siteConfig } from "@/lib/seo/site";
 
-export const metadata = buildMetadata({ path: "/" });
+export const metadata = buildMetadata({
+  absoluteTitle: siteConfig.homeTitle,
+  path: "/",
+});
 
 const websiteJsonLd: WithContext<WebSite> = {
   "@context": "https://schema.org",

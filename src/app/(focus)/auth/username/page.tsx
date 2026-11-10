@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 
 import { AuthShell, FormFallback } from "@/features/auth/components/auth-shell";
+import { isNewAccount } from "@/features/auth/queries";
 import { safePathOrNull } from "@/features/auth/schemas";
 import { UsernameForm } from "@/features/profiles/components/username-form";
+import { analyticsEnabled } from "@/lib/analytics/analytics";
+import { SignUpEvent } from "@/lib/analytics/sign-up-event";
 import { buildMetadata } from "@/lib/seo/metadata";
 
 export const metadata = buildMetadata({
@@ -34,10 +37,14 @@ export default function UsernamePage({
 
 async function UsernameStep({ searchParams }: { searchParams: SearchParams }) {
   const { next } = await searchParams;
+  const signedUpJustNow = analyticsEnabled() && (await isNewAccount());
 
   return (
-    <UsernameForm
-      next={safePathOrNull(typeof next === "string" ? next : null)}
-    />
+    <>
+      <SignUpEvent isNewAccount={signedUpJustNow} />
+      <UsernameForm
+        next={safePathOrNull(typeof next === "string" ? next : null)}
+      />
+    </>
   );
 }
