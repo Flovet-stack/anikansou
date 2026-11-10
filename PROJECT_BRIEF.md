@@ -1,6 +1,6 @@
 # Project brief: AniKansou
 
-Last updated: 2026-11-07
+Last updated: 2026-11-11
 
 This brief describes the whole product. It does not change when a phase or sprint is planned: phase plans and task specs live in `specs/`.
 
@@ -51,6 +51,9 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 23. NSFW filter
 24. Dark mode
 25. Trending, top rated and seasonal charts (trending from our own users' activity)
+26. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)
+27. Community contributions: users suggest data changes and an admin validates them before they go live; ships with the admin dashboard (0026)
+28. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)
 
 ### Nice to have
 
@@ -109,6 +112,9 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
 
+- 2026-11-11: Milestone badges for ratings, Watched and approved contributions, stored and announced once on any page; no points, no likes, no streaks or leaderboards (0024).
+- 2026-11-11: Our own public AniKansou rating from users' star ratings, shown from 10 ratings; until then the dataset's score is shown, labelled as from other sites. This amends "never shown to users" below; the deck order stays private (0025).
+- 2026-11-11: Community contributions validated by an admin, shipping with the admin dashboard. Data from APIs that don't allow copying is never stored or edited, except AniList cover links (0017) (0026).
 - 2026-11-07: Title search on Discover (`/discover`) across every title and synonym, in any script; filters come later (0018).
 - 2026-11-07: AniList cover images, looked up only for titles on screen and stored as links; written permission not yet obtained (0017).
 - 2026-11-07: Library at `/library` with status, watchlist and liked shelves (0016).
