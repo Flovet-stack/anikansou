@@ -9,7 +9,7 @@ import {
   deckUndo,
 } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
-import { reportRatedCount } from "@/lib/analytics/analytics";
+import { capture, reportRatedCount } from "@/lib/analytics/analytics";
 
 import { loadDeckPage } from "./actions";
 import {
@@ -389,6 +389,12 @@ export function useDeck({
         }),
       );
       showToast(done.label, true);
+      capture("deck_title_tracked", {
+        status: result.state.status,
+        rating: result.state.rating,
+        liked: result.state.liked,
+        watchlisted: result.state.watchlisted,
+      });
 
       let milestoneLine: string | null = null;
       if (before.rating === null && result.state.rating !== null) {
@@ -436,6 +442,7 @@ export function useDeck({
         setAnnouncement(result.error);
         return false;
       }
+      capture("deck_title_skipped", { skip_method: via });
       if (via === "passed") {
         passed.current.set(card.animeId, result.eventId);
       } else {

@@ -7,6 +7,7 @@ import type { SaveCard } from "@/features/library/card-actions";
 import type { LibraryCard } from "@/features/library/types";
 import { safely } from "@/features/library/use-library";
 import { deckUndo } from "@/features/tracking/actions";
+import { capture } from "@/lib/analytics/analytics";
 import type { TrackingState } from "@/features/tracking/schemas";
 
 import { loadSearchPage } from "./actions";
@@ -129,6 +130,15 @@ export function useSearch({
     }
     setResults({ query, filters: next, ...page });
     setStatus("ready");
+    capture("discover_search_completed", {
+      has_query: query.length > 0,
+      type_filter_count: next.types.length,
+      genre_filter_count: next.genres.length,
+      has_year_filter: next.year !== null,
+      has_season_filter: next.season !== null,
+      has_status_filter: next.status !== null,
+      results_count: page.total,
+    });
     setAnnouncement(
       page.total === 0
         ? noResultsText(query, next)
@@ -336,6 +346,12 @@ export function useSearch({
 
       confirmed.current.set(id, result.state);
       if (left === 0) applyState(id, result.state);
+      capture("discover_title_updated", {
+        status: result.state.status,
+        rating: result.state.rating,
+        liked: result.state.liked,
+        watchlisted: result.state.watchlisted,
+      });
       undoRef.current = {
         eventId: result.eventId,
         animeId: id,

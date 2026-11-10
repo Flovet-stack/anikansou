@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ActionToastProps } from "@/components/feedback/action-toast";
 import { type TrackingResult, deckUndo } from "@/features/tracking/actions";
+import { capture } from "@/lib/analytics/analytics";
 import type { TrackingState } from "@/features/tracking/schemas";
 
 import { loadLibraryPage } from "./actions";
@@ -316,6 +317,12 @@ export function useLibrary({
 
       confirmed.current.set(id, result.state);
       if (left === 0) applyState(id, result.state);
+      capture("library_title_updated", {
+        status: result.state.status,
+        rating: result.state.rating,
+        liked: result.state.liked,
+        watchlisted: result.state.watchlisted,
+      });
       undoRef.current = {
         eventId: result.eventId,
         animeId: id,

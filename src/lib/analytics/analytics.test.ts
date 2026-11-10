@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const posthog = vi.hoisted(() => ({ init: vi.fn(), capture: vi.fn() }));
+const posthog = vi.hoisted(() => ({
+  init: vi.fn(),
+  capture: vi.fn(),
+  captureException: vi.fn(),
+}));
 const env = vi.hoisted(() => ({
-  NEXT_PUBLIC_POSTHOG_TOKEN: undefined as string | undefined,
+  NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: undefined as string | undefined,
   NEXT_PUBLIC_POSTHOG_HOST: undefined as string | undefined,
 }));
 
@@ -15,36 +19,32 @@ async function load() {
   return import("./analytics");
 }
 
-async function settle() {
-  await vi.waitFor(() => expect(posthog.init).toHaveBeenCalled());
-  await new Promise((resolve) => setTimeout(resolve));
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  env.NEXT_PUBLIC_POSTHOG_TOKEN = undefined;
+  env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = undefined;
   env.NEXT_PUBLIC_POSTHOG_HOST = undefined;
 });
 
 describe("without a token", () => {
-  it("never loads PostHog, and events do nothing", async () => {
+  it("never starts PostHog, and every call does nothing", async () => {
     const analytics = await load();
 
     analytics.startAnalytics();
     analytics.trackOnce("sign_up");
-    await new Promise((resolve) => setTimeout(resolve));
+    analytics.capture("deck_title_tracked");
+    analytics.captureError(new Error("boom"));
 
     expect(analytics.analyticsEnabled()).toBe(false);
     expect(posthog.init).not.toHaveBeenCalled();
     expect(posthog.capture).not.toHaveBeenCalled();
+    expect(posthog.captureException).not.toHaveBeenCalled();
   });
 
   it("stays off with a token but no host", async () => {
-    env.NEXT_PUBLIC_POSTHOG_TOKEN = "phc_test";
+    env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
     const analytics = await load();
 
     analytics.startAnalytics();
-    await new Promise((resolve) => setTimeout(resolve));
 
     expect(analytics.analyticsEnabled()).toBe(false);
     expect(posthog.init).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe("without a token", () => {
 
 describe("with a token", () => {
   beforeEach(() => {
-    env.NEXT_PUBLIC_POSTHOG_TOKEN = "phc_test";
+    env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
     env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
   });
 
@@ -61,7 +61,6 @@ describe("with a token", () => {
     const analytics = await load();
 
     analytics.startAnalytics();
-    await settle();
 
     expect(posthog.init).toHaveBeenCalledTimes(1);
     expect(posthog.init).toHaveBeenCalledWith(
@@ -69,6 +68,7 @@ describe("with a token", () => {
       expect.objectContaining({
         api_host: "https://eu.i.posthog.com",
         cookieless_mode: "always",
+        person_profiles: "never",
         capture_pageview: "history_change",
         capture_exceptions: true,
         autocapture: false,
@@ -82,7 +82,6 @@ describe("with a token", () => {
 
     analytics.startAnalytics();
     analytics.startAnalytics();
-    await settle();
 
     expect(posthog.init).toHaveBeenCalledTimes(1);
   });
@@ -93,10 +92,23 @@ describe("with a token", () => {
 
     analytics.trackOnce("sign_up");
     analytics.trackOnce("sign_up");
-    await settle();
 
     expect(posthog.capture).toHaveBeenCalledTimes(1);
     expect(posthog.capture).toHaveBeenCalledWith("sign_up");
+  });
+
+  it("passes named events and caught errors through", async () => {
+    const analytics = await load();
+    analytics.startAnalytics();
+    const error = new Error("boom");
+
+    analytics.capture("deck_title_skipped", { skip_method: "passed" });
+    analytics.captureError(error);
+
+    expect(posthog.capture).toHaveBeenCalledWith("deck_title_skipped", {
+      skip_method: "passed",
+    });
+    expect(posthog.captureException).toHaveBeenCalledWith(error);
   });
 
   it.each([
@@ -111,7 +123,6 @@ describe("with a token", () => {
     analytics.startAnalytics();
 
     analytics.reportRatedCount(before, after);
-    await settle();
 
     expect(posthog.capture.mock.calls.map(([event]) => event)).toEqual(events);
   });
@@ -123,20 +134,18 @@ describe("with a token", () => {
     analytics.reportRatedCount(0, 1);
     analytics.reportRatedCount(1, 0);
     analytics.reportRatedCount(0, 1);
-    await settle();
 
     expect(posthog.capture).toHaveBeenCalledTimes(1);
   });
 
-  it("survives PostHog failing to load", async () => {
+  it("stays off, without throwing, if PostHog fails to start", async () => {
     posthog.init.mockImplementationOnce(() => {
       throw new Error("blocked");
     });
     const analytics = await load();
 
-    analytics.startAnalytics();
+    expect(() => analytics.startAnalytics()).not.toThrow();
     analytics.trackOnce("sign_up");
-    await settle();
 
     expect(posthog.capture).not.toHaveBeenCalled();
   });
