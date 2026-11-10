@@ -75,7 +75,7 @@ No popular anime platform's own number can be shown under its terms today. If An
 
 Under Must have:
 
-`42. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)`
+`44. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)`
 
 Plus a line in the Decisions list, and the "never shown to users" entry amended by a new line. The deck's order stays private.
 

@@ -1,8 +1,8 @@
 # 0020: Search filters on Discover
 
-- **Status:** Proposed
+- **Status:** Approved
 - **Proposed:** 2026-11-08 by the product team (roles: Tech Lead, PM, Database, Product, UX, UI, Copy, Frontend, Backend)
-- **Approved:**
+- **Approved:** 2026-11-08 by Flovet (merged PR #20, then "can you implement spec-10 now?")
 - **Specs:** specs/10-search-filters.md
 
 ## Context

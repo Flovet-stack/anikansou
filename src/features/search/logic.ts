@@ -1,3 +1,10 @@
+import {
+  type Filters,
+  EMPTY_FILTERS,
+  filterParams,
+  hasFilters,
+} from "./filters";
+
 /** Decision 0018: from 2 characters, at most 100, 24 a page, 200 in all. */
 export const MIN_QUERY_CHARS = 2;
 export const MAX_QUERY_CHARS = 100;
@@ -34,17 +41,47 @@ export function clampInput(raw: string): string {
   return [...raw.replace(/[\r\n]+/g, " ")].slice(0, MAX_QUERY_CHARS).join("");
 }
 
-/** `36 results for "frieren"`, or `200+ results` at the cap (0018). */
+/**
+ * `36 results for "frieren"`, `200+` at the cap (0018), or just `36 results`
+ * when browsing by filter with no query (0020).
+ */
 export function resultsText(total: number, query: string): string {
   const shown = query.trim();
-  if (total > MAX_RESULTS) return `200+ results for "${shown}"`;
-  return `${total} ${total === 1 ? "result" : "results"} for "${shown}"`;
+  const count =
+    total > MAX_RESULTS
+      ? "200+ results"
+      : `${total} ${total === 1 ? "result" : "results"}`;
+  return shown ? `${count} for "${shown}"` : count;
 }
 
-/** The Discover URL for a query (empty query: plain `/discover`). */
-export function discoverHref(raw: string): string {
+/** The no-results message: 0020's with a filter on, 0018's without. */
+export function noResultsText(query: string, filters: Filters): string {
+  return hasFilters(filters)
+    ? "No anime match these filters."
+    : `No anime match “${query.trim()}”.`;
+}
+
+/** Whether there's anything to search for: a real query, or a filter (0020). */
+export function shouldSearch(query: string, filters: Filters): boolean {
+  return isSearchable(query) || hasFilters(filters);
+}
+
+/** The query to send: empty when the field holds too little to mean anything. */
+export function effectiveQuery(query: string): string {
+  return isSearchable(query) ? query : "";
+}
+
+/** The Discover URL for a search. Nothing to say: plain `/discover`. */
+export function discoverHref(
+  raw: string,
+  filters: Filters = EMPTY_FILTERS,
+): string {
   const query = raw.trim();
-  return query ? `/discover?q=${encodeURIComponent(query)}` : "/discover";
+  const parts = [
+    ...(query ? [`q=${encodeURIComponent(query)}`] : []),
+    ...filterParams(filters),
+  ];
+  return parts.length > 0 ? `/discover?${parts.join("&")}` : "/discover";
 }
 
 /** The query from `?q=`, as the field should show it. */

@@ -3,6 +3,10 @@ import "server-only";
 import { after } from "next/server";
 
 import { env } from "@/env";
+import {
+  logPosterLookupCompleted,
+  logPosterSourcesResolved,
+} from "@/lib/posthog-logs";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
@@ -97,6 +101,12 @@ export async function getPosterSources(
     const urls = resolvePosterUrls(candidates, env.NEXT_PUBLIC_SUPABASE_URL);
     if (urls.length > 0) result.set(animeId, urls);
   }
+
+  logPosterSourcesResolved({
+    requested_title_count: ids.length,
+    resolved_title_count: result.size,
+    lookup_requested: lookUp,
+  });
   return result;
 }
 
@@ -183,6 +193,11 @@ async function lookUpCovers(
       items.push({ anime_id: animeId, url });
       if (url) found.set(animeId, url);
     }
+
+    logPosterLookupCompleted({
+      requested_title_count: targets.size,
+      cover_found_count: found.size,
+    });
 
     after(async () => {
       const { error } = await recorder

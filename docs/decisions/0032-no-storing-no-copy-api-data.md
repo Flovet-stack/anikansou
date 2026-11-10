@@ -1,4 +1,4 @@
-# 0027: Never store data from APIs that don't allow copying
+# 0032: Never store data from APIs that don't allow copying
 
 - **Status:** Rejected
 - **Proposed:** 2026-11-10 by the product team (roles: Tech Lead, Backend, Database, Frontend)

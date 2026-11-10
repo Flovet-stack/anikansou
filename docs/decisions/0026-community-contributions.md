@@ -110,7 +110,7 @@ The spec finalises this; migrations are **Ask first.**
 
 Under Must have:
 
-`41. Community contributions: users suggest data changes and an admin validates them before they go live (0026)`
+`43. Community contributions: users suggest data changes and an admin validates them before they go live (0026)`
 
 Plus a line in the Decisions list. `CLAUDE.md` gains nothing yet.
 

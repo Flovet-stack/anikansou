@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ActionToastProps } from "@/components/feedback/action-toast";
@@ -8,23 +9,32 @@ import type { LibraryCard } from "@/features/library/types";
 import { safely } from "@/features/library/use-library";
 import { deckUndo } from "@/features/tracking/actions";
 import type { TrackingState } from "@/features/tracking/schemas";
+import { env } from "@/env";
 
 import { loadSearchPage } from "./actions";
+import { EMPTY_FILTERS, type Filters } from "./filters";
 import {
   MAX_RESULTS,
   SEARCH_DEBOUNCE_MS,
   clampInput,
   discoverHref,
-  isSearchable,
+  effectiveQuery,
+  noResultsText,
   resultsText,
+  shouldSearch,
 } from "./logic";
 import type { SearchCard, SearchPage } from "./types";
 
 const NETWORK = "Search isn't working right now.";
 const GONE = "That anime is no longer in the catalog, so it was removed.";
 
-/** The results on screen, and the query they belong to. */
-export type Results = { query: string; cards: SearchCard[]; total: number };
+/** The results on screen, and the search they belong to. */
+export type Results = {
+  query: string;
+  filters: Filters;
+  cards: SearchCard[];
+  total: number;
+};
 
 export type SearchStatus = "idle" | "loading" | "ready" | "error";
 
@@ -32,24 +42,34 @@ type Toast = ActionToastProps;
 type Undo = { eventId: number; animeId: number; label: string };
 
 /**
- * Discover's search (spec 09, decision 0018): the field, a 250 ms debounce,
- * `?q=` kept with `history.replaceState`, a guard so a late reply never
- * overwrites a newer query, "Show more", and optimistic saves with Undo for
- * signed-in users. Below 2 real characters no request is sent.
+ * Discover's search (specs 09 and 10, decisions 0018 and 0020): the field and
+ * the filters, a 250 ms debounce, the URL kept with `history.replaceState`, a
+ * guard so a late reply never overwrites a newer search, "Show more", and
+ * optimistic saves with Undo for signed-in users. With no real query and no
+ * filter, no request is sent.
  */
 export function useSearch({
   initialQuery,
+  initialFilters = EMPTY_FILTERS,
   initialPage,
   initialError = false,
 }: {
   initialQuery: string;
-  /** Server-rendered first page for `?q=`, or null when nothing was searched. */
+  initialFilters?: Filters;
+  /** Server-rendered first page for the URL, or null when nothing was searched. */
   initialPage: SearchPage | null;
   initialError?: boolean;
 }) {
   const [input, setInput] = useState(initialQuery);
+  const [filters, setFilters] = useState(initialFilters);
   const [results, setResults] = useState<Results | null>(
-    initialPage ? { query: initialQuery, ...initialPage } : null,
+    initialPage
+      ? {
+          query: effectiveQuery(initialQuery),
+          filters: initialFilters,
+          ...initialPage,
+        }
+      : null,
   );
   const [status, setStatus] = useState<SearchStatus>(
     initialError ? "error" : initialPage ? "ready" : "idle",
@@ -77,22 +97,29 @@ export function useSearch({
   };
   useEffect(() => cancelTimer, []);
 
-  const run = useCallback(async (query: string) => {
+  const run = useCallback(async (raw: string, next: Filters) => {
     cancelTimer();
     const id = ++requestId.current;
-    // The URL follows the search, without a history entry per query (0018).
-    window.history.replaceState(window.history.state, "", discoverHref(query));
-    if (!isSearchable(query)) {
+    // The URL follows the search, without a history entry per change (0018).
+    window.history.replaceState(
+      window.history.state,
+      "",
+      discoverHref(raw, next),
+    );
+    if (!shouldSearch(raw, next)) {
       setResults(null);
       setStatus("idle");
       setLoadError(null);
       return;
     }
+    const query = effectiveQuery(raw);
+    // Emptied first, so the same count ("200+ results") is announced again.
+    setAnnouncement("");
     setStatus("loading");
     setLoadError(null);
     let page: Awaited<ReturnType<typeof loadSearchPage>>;
     try {
-      page = await loadSearchPage(query, 0);
+      page = await loadSearchPage(query, next, 0);
     } catch {
       page = { error: NETWORK };
     }
@@ -102,44 +129,92 @@ export function useSearch({
       setAnnouncement(page.error);
       return;
     }
-    setResults({ query, ...page });
+    setResults({ query, filters: next, ...page });
     setStatus("ready");
+    if (
+      env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+      env.NEXT_PUBLIC_POSTHOG_HOST
+    ) {
+      posthog.capture("discover_search_completed", {
+        has_query: query.length > 0,
+        type_filter_count: next.types.length,
+        genre_filter_count: next.genres.length,
+        has_year_filter: next.year !== null,
+        has_season_filter: next.season !== null,
+        has_status_filter: next.status !== null,
+        results_count: page.total,
+      });
+    }
     setAnnouncement(
       page.total === 0
-        ? `No anime match “${query.trim()}”.`
+        ? noResultsText(query, next)
         : resultsText(page.total, query),
     );
   }, []);
 
-  /** Typing: search 250 ms after the last keystroke. */
-  const change = useCallback(
-    (raw: string) => {
-      const value = clampInput(raw);
-      setInput(value);
+  /** Runs the search after the debounce, or now when there's nothing to wait for. */
+  const schedule = useCallback(
+    (raw: string, next: Filters) => {
       cancelTimer();
-      if (!isSearchable(value)) {
-        // Too short: nothing to wait for, and any reply in flight is stale.
-        void run(value);
+      // What's in flight is out of date already, even during the debounce.
+      requestId.current += 1;
+      if (!shouldSearch(raw, next)) {
+        // Nothing to search: any reply in flight is stale.
+        void run(raw, next);
         return;
       }
       timer.current = window.setTimeout(
-        () => void run(value),
+        () => void run(raw, next),
         SEARCH_DEBOUNCE_MS,
       );
     },
     [run],
   );
 
-  /** Enter: search now. */
-  const submit = useCallback(() => void run(input), [run, input]);
+  /** Typing: search 250 ms after the last keystroke. */
+  const change = useCallback(
+    (raw: string) => {
+      const value = clampInput(raw);
+      setInput(value);
+      schedule(value, filters);
+    },
+    [schedule, filters],
+  );
 
-  /** Esc or the clear button. */
+  /** A filter or the sort changed: same debounce as typing (spec 10 #6). */
+  const changeFilters = useCallback(
+    (next: Filters) => {
+      setFilters(next);
+      schedule(input, next);
+    },
+    [schedule, input],
+  );
+
+  /** The phone sheet's Show results: search now (spec 10 #7). */
+  const applyFilters = useCallback(
+    (next: Filters) => {
+      setFilters(next);
+      void run(input, next);
+    },
+    [run, input],
+  );
+
+  /** Enter: search now. */
+  const submit = useCallback(
+    () => void run(input, filters),
+    [run, input, filters],
+  );
+
+  /** Esc or the clear button: the query goes, the filters stay (spec 10 #11). */
   const clear = useCallback(() => {
     setInput("");
-    void run("");
-  }, [run]);
+    void run("", filters);
+  }, [run, filters]);
 
-  const retry = useCallback(() => void run(input), [run, input]);
+  const retry = useCallback(
+    () => void run(input, filters),
+    [run, input, filters],
+  );
 
   const loadMore = useCallback(async () => {
     const current = resultsRef.current;
@@ -151,7 +226,7 @@ export function useSearch({
     setLoadError(null);
     let page: Awaited<ReturnType<typeof loadSearchPage>>;
     try {
-      page = await loadSearchPage(current.query, offset);
+      page = await loadSearchPage(current.query, current.filters, offset);
     } catch {
       page = { error: NETWORK };
     }
@@ -165,7 +240,7 @@ export function useSearch({
     // Append to what's on screen now, not the snapshot from before the
     // await: a save made meanwhile has already updated it.
     const live = resultsRef.current;
-    if (!live || live.query !== current.query) return;
+    if (!live) return;
     const known = new Set(live.cards.map((c) => c.animeId));
     const fresh = page.cards.filter((c) => !known.has(c.animeId));
     const next = { ...live, cards: [...live.cards, ...fresh] };
@@ -277,6 +352,17 @@ export function useSearch({
 
       confirmed.current.set(id, result.state);
       if (left === 0) applyState(id, result.state);
+      if (
+        env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+        env.NEXT_PUBLIC_POSTHOG_HOST
+      ) {
+        posthog.capture("discover_title_updated", {
+          status: result.state.status,
+          rating: result.state.rating,
+          liked: result.state.liked,
+          watchlisted: result.state.watchlisted,
+        });
+      }
       undoRef.current = {
         eventId: result.eventId,
         animeId: id,
@@ -298,6 +384,9 @@ export function useSearch({
   return {
     input,
     change,
+    filters,
+    changeFilters,
+    applyFilters,
     submit,
     clear,
     retry,

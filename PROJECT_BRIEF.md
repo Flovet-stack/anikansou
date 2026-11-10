@@ -22,7 +22,7 @@ This brief describes the whole product. It does not change when a phase or sprin
 
 ## Full feature scope
 
-Tags: **[data]** = needs a data source we don't have yet; decide before building.
+Tags: **[data]** = needs a data source we don't have yet; decide before building. **[legal]** = needs a legal and licensing check before building.
 
 ### Must have
 
@@ -51,9 +51,12 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 23. NSFW filter
 24. Dark mode
 25. Trending, top rated and seasonal charts (trending from our own users' activity)
-26. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)
-27. Community contributions: users suggest data changes and an admin validates them before they go live; ships with the admin dashboard (0026)
-28. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)
+
+Added 2026-11-11, numbered on from the end so existing references stay valid:
+
+42. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)
+43. Community contributions: users suggest data changes and an admin validates them before they go live; ships with the admin dashboard (0026)
+44. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)
 
 ### Nice to have
 
@@ -67,6 +70,15 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 33. Hidden gems filter
 34. Random pick from the watchlist
 35. Yearly watch goal
+
+Added 2026-11-09, numbered on from the end so existing references to #36–39 stay valid:
+
+40. "I am feeling" on the Library page: the line "I am feeling" followed by a few suggestion chips. Selecting one proposes a few anime from the user's own library that suit that feeling.
+41. Stream anime on the website **[data]** **[legal]**. Feasibility study first; nothing is built until its findings are logged as a decision and approved. The study checks each source's legality and licensing, cost, reliability and terms, against this brief's rules on external and paid APIs (Data sources and licences). Candidates to study:
+    - cinesrc.st: https://website.informer.com/visit?domain=cinesrc.st&pageviewId=desktop-302e373134303032303020313739343136383639382031383839313531373633
+    - GitHub topic `anime-api`: https://github.com/topics/anime-api
+    - ErickLimaS/anime-website: https://github.com/ErickLimaS/anime-website
+    - Anime Streaming API on RapidAPI: https://rapidapi.com/adarsh.chouhan11/api/anime-streaming
 
 ### Can wait
 
@@ -115,6 +127,10 @@ Product-wide decisions only. Every decision, with its research, is logged in `do
 - 2026-11-11: Milestone badges for ratings, Watched and approved contributions, stored and announced once on any page; no points, no likes, no streaks or leaderboards (0024).
 - 2026-11-11: Our own public AniKansou rating from users' star ratings, shown from 10 ratings; until then the dataset's score is shown, labelled as from other sites. This amends "never shown to users" below; the deck order stays private (0025).
 - 2026-11-11: Community contributions validated by an admin, shipping with the admin dashboard. Data from APIs that don't allow copying is never stored or edited, except AniList cover links (0017) (0026).
+- 2026-11-08: Growth order: foundations, indexable pages, then import, profiles and share cards, with a community launch in January 2027; hand-written watch-order guides move up from "Can wait" (0030).
+- 2026-11-08: Search Console and Bing Webmaster Tools for search, PostHog for product analytics and errors, SQL for user counts; Sentry only if PostHog's error tracking fails a test (0029, 0031).
+- 2026-11-08: Public title pages, with only complete titles indexed and the index grown in steps; crawlers never trigger AniList lookups (0028).
+- 2026-11-08: Search filters on Discover (type, genre, year, status, season, sort), with a curated genre list; studio filter waits for a name cleanup (0020).
 - 2026-11-07: Title search on Discover (`/discover`) across every title and synonym, in any script; filters come later (0018).
 - 2026-11-07: AniList cover images, looked up only for titles on screen and stored as links; written permission not yet obtained (0017).
 - 2026-11-07: Library at `/library` with status, watchlist and liked shelves (0016).

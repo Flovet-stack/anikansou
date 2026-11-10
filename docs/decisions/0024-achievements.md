@@ -103,7 +103,7 @@ The spec finalises this; the migration is **Ask first**.
 
 Under Must have, keeping existing numbers:
 
-`40. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)`
+`42. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)`
 
 Plus a line in the brief's Decisions list.
 
