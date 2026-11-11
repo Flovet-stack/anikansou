@@ -1,6 +1,6 @@
 # Project brief: AniKansou
 
-Last updated: 2026-11-09
+Last updated: 2026-11-11
 
 This brief describes the whole product. It does not change when a phase or sprint is planned: phase plans and task specs live in `specs/`.
 
@@ -51,6 +51,12 @@ Tags: **[data]** = needs a data source we don't have yet; decide before building
 23. NSFW filter
 24. Dark mode
 25. Trending, top rated and seasonal charts (trending from our own users' activity)
+
+Added 2026-11-11, numbered on from the end so existing references stay valid:
+
+42. Milestone badges for ratings, Watched and approved contributions, announced on any page when earned (0024)
+43. Community contributions: users suggest data changes and an admin validates them before they go live; ships with the admin dashboard (0026)
+44. AniKansou rating: a public per-title rating from our users' star ratings, with the dataset's score from other sites as a labelled stand-in until a title has enough ratings (0025)
 
 ### Nice to have
 
@@ -118,6 +124,9 @@ References are for inspiration only: never copy their logos, names, icons, illus
 
 Product-wide decisions only. Every decision, with its research, is logged in `docs/decisions/`.
 
+- 2026-11-11: Milestone badges for ratings, Watched and approved contributions, stored and announced once on any page; no points, no likes, no streaks or leaderboards (0024).
+- 2026-11-11: Our own public AniKansou rating from users' star ratings, shown from 10 ratings; until then the dataset's score is shown, labelled as from other sites. This amends "never shown to users" below; the deck order stays private (0025).
+- 2026-11-11: Community contributions validated by an admin, shipping with the admin dashboard. Data from APIs that don't allow copying is never stored or edited, except AniList cover links (0017) (0026).
 - 2026-11-08: Growth order: foundations, indexable pages, then import, profiles and share cards, with a community launch in January 2027; hand-written watch-order guides move up from "Can wait" (0030).
 - 2026-11-08: Search Console and Bing Webmaster Tools for search, PostHog for product analytics and errors, SQL for user counts; Sentry only if PostHog's error tracking fails a test (0029, 0031).
 - 2026-11-08: Public title pages, with only complete titles indexed and the index grown in steps; crawlers never trigger AniList lookups (0028).

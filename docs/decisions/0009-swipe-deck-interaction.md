@@ -1,6 +1,6 @@
 # 0009: Swipe deck interaction
 
-- **Status:** Approved; the deck's status controls and the rule that a rating sets Watched are superseded by [0015](0015-deck-watched-only.md)
+- **Status:** Approved; the deck's status controls and the rule that a rating sets Watched are superseded by [0015](0015-deck-watched-only.md); its rating milestones are superseded by [0024](0024-achievements.md)
 - **Proposed:** 2026-11-06 by the product team (roles: UX, UI, Gamification, Product, Frontend)
 - **Approved:** 2026-11-06 by Flovet, with one amendment: passed titles stay reviewable and editable for the rest of the session
 - **Revised:** 2026-11-06 after Flovet's review: the gesture model is for touch screens only; on the web, swiping just moves between anime and every action is an explicit control.
