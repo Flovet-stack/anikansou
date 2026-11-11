@@ -2,6 +2,7 @@ import { Bricolage_Grotesque, Onest } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { AuthAnalytics } from "@/lib/analytics/sign-up-event";
 import { rootMetadata } from "@/lib/seo/metadata";
 
 import "./globals.css";
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthAnalytics />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -18,7 +18,7 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
     // Set in Production only. Without both, analytics stays off (decision 0031).
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().min(1).optional(),
-    NEXT_PUBLIC_POSTHOG_HOST: z.url().optional(),
+    NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
